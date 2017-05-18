@@ -18,6 +18,24 @@ type LyricBreak
     | Page
 
 
+-- type alias Lyric =
+--     { text : String
+--     , time : Time
+--     }
+
+
+-- type alias LyricLine =
+--     List Lyric
+
+
+-- type alias LyricPage =
+--     List LyricLine
+
+
+-- type alias LyricBook =
+--     List LyricPage
+
+
 lyrics : Array Lyric
 lyrics =
     Array.fromList <|

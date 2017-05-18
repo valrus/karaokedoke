@@ -23,20 +23,20 @@ type ModelMsg
 
 type alias Model =
     { lyrics : Array Lyric
-    , startTime : Time
-    , currentTime : Time
-    , currentEventIndex : Int
+    , playhead : Time
+    , lyricIndex : Int
     , playing : Bool
+    , display : Array String
     }
 
 
 init : (Model, Cmd Msg)
 init =
     { lyrics = lyrics
-    , startTime = 0.0
-    , currentTime = 0.0
-    , currentEventIndex = 0
+    , playhead = 0.0
+    , lyricIndex = 0
     , playing = False
+    , display = Array.fromList []
     }
     ! [ Cmd.none ]
 
@@ -46,16 +46,36 @@ view model =
     Html.div [] []
 
 
+updateModel : ModelMsg -> Time -> Model -> Model
+updateModel msg time model =
+    case msg of
+        PlayState playing ->
+            { model
+            | playing = playing
+            }
+
+        Animate ->
+            let
+                newTime = model.playhead + time
+                nextLyric = findNextLyric model newTime
+            in
+                { model
+                | playhead = newTime
+                , display = updateDisplay model
+                }
+
+        NoOp ->
+            model
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         AtTime wrappedMsg ->
             ( model, Task.perform (WithTime wrappedMsg) Time.now )
 
-        WithTime wrappedMsg time ->
-            { model
-            | startTime = time
-            }
+        WithTime modelMsg time ->
+            updateModel modelMsg time model
             ! [ Cmd.none ]
 
 
@@ -65,7 +85,7 @@ port state : (Bool -> msg) -> Sub msg
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ AnimationFrame.times (WithTime Animate)
+        [ AnimationFrame.diffs (WithTime Animate)
         , state (AtTime << PlayState)
         ]
 
