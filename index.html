@@ -1,0 +1,53 @@
+<html>
+
+<head>
+    <meta name="viewport" content="width=800, initial-scale=1" />
+    <meta charset="utf-8" />
+    <title></title>
+    <link rel="profile" href="https://www.w3.org/2005/10/profile" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+</head>
+
+<body>
+</body>
+<div id="musicvideo"></div>
+
+<script src="static/js/audio/audio5.min.js"></script>
+<script>
+</script>
+
+<script type="text/javascript" src="static/js/elm.js"></script>
+<script>
+    var app = Elm.MusicVideo.fullscreen();
+
+    // app.ports.check.subscribe(function (word) {
+    //     var suggestions = spellCheck(word);
+    //     app.ports.suggestions.send(suggestions);
+    // });
+
+    function initAudio() {
+        var audio5js = new Audio5js({
+            ready: function () {
+
+                //this points to the Audio5js instance
+                this.on('play', function () {
+                    console.log('play');
+                    app.ports.state.send(true);
+                }, this);
+                this.on('pause', function () {
+                    console.log('pause');
+                    app.ports.state.send(false);
+                }, this);
+                this.on('ended', function () {
+                    console.log('ended');
+                    app.ports.state.send(false);
+                }, this);
+
+                this.load('/static/audio/song.mp3');
+                this.play();
+            },
+        });
+    }
+    initAudio();
+</script>
+</html>
