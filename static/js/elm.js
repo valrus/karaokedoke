@@ -8744,48 +8744,62 @@ var _user$project$MusicVideo$updateModel = F3(
 				return model;
 		}
 	});
-var _user$project$MusicVideo$flattenPage = function (page) {
-	return A2(
-		_elm_lang$core$List$map,
-		_elm_lang$core$String$join(''),
-		A2(
+var _user$project$MusicVideo$flattenPage = F2(
+	function (time, page) {
+		return A2(
 			_elm_lang$core$List$map,
-			_elm_lang$core$List$map(
-				function (_) {
-					return _.text;
-				}),
-			page));
-};
-var _user$project$MusicVideo$simpleDisplay = function (mpage) {
-	var _p1 = mpage;
-	if (_p1.ctor === 'Nothing') {
-		return A2(
-			_elm_lang$html$Html$div,
-			{ctor: '[]'},
-			{ctor: '[]'});
-	} else {
-		return A2(
-			_elm_lang$html$Html$div,
-			{ctor: '[]'},
+			_elm_lang$core$String$join(''),
 			A2(
 				_elm_lang$core$List$map,
-				function (_p2) {
+				function (_p1) {
 					return A2(
-						_elm_lang$html$Html$p,
-						{ctor: '[]'},
-						_elm_lang$core$List$singleton(
-							_elm_lang$html$Html$text(_p2)));
+						_elm_lang$core$List$map,
+						function (_) {
+							return _.text;
+						},
+						A2(
+							_elm_lang$core$List$filter,
+							function (_p2) {
+								return A2(
+									_elm_lang$core$Maybe$withDefault,
+									false,
+									A2(_user$project$MusicVideo$lyricBefore, time, _p2));
+							},
+							_p1));
 				},
-				_user$project$MusicVideo$flattenPage(_p1._0)));
-	}
-};
+				page));
+	});
+var _user$project$MusicVideo$simpleDisplay = F2(
+	function (time, mpage) {
+		var _p3 = mpage;
+		if (_p3.ctor === 'Nothing') {
+			return A2(
+				_elm_lang$html$Html$div,
+				{ctor: '[]'},
+				{ctor: '[]'});
+		} else {
+			return A2(
+				_elm_lang$html$Html$div,
+				{ctor: '[]'},
+				A2(
+					_elm_lang$core$List$map,
+					function (_p4) {
+						return A2(
+							_elm_lang$html$Html$p,
+							{ctor: '[]'},
+							_elm_lang$core$List$singleton(
+								_elm_lang$html$Html$text(_p4)));
+					},
+					A2(_user$project$MusicVideo$flattenPage, time, _p3._0)));
+		}
+	});
 var _user$project$MusicVideo$view = function (model) {
 	return A2(
 		_elm_lang$html$Html$div,
 		{ctor: '[]'},
 		{
 			ctor: '::',
-			_0: _user$project$MusicVideo$simpleDisplay(model.page),
+			_0: A2(_user$project$MusicVideo$simpleDisplay, model.playhead, model.page),
 			_1: {
 				ctor: '::',
 				_0: _elm_lang$html$Html$text(
@@ -8814,20 +8828,20 @@ var _user$project$MusicVideo$WithTime = F2(
 	});
 var _user$project$MusicVideo$update = F2(
 	function (msg, model) {
-		var _p3 = msg;
-		if (_p3.ctor === 'AtTime') {
+		var _p5 = msg;
+		if (_p5.ctor === 'AtTime') {
 			return {
 				ctor: '_Tuple2',
 				_0: model,
 				_1: A2(
 					_elm_lang$core$Task$perform,
-					_user$project$MusicVideo$WithTime(_p3._0),
+					_user$project$MusicVideo$WithTime(_p5._0),
 					_elm_lang$core$Time$now)
 			};
 		} else {
 			return A2(
 				_elm_lang$core$Platform_Cmd_ops['!'],
-				A3(_user$project$MusicVideo$updateModel, _p3._0, _p3._1, model),
+				A3(_user$project$MusicVideo$updateModel, _p5._0, _p5._1, model),
 				{
 					ctor: '::',
 					_0: _elm_lang$core$Platform_Cmd$none,
@@ -8852,9 +8866,9 @@ var _user$project$MusicVideo$subscriptions = function (model) {
 			_1: {
 				ctor: '::',
 				_0: _user$project$MusicVideo$state(
-					function (_p4) {
+					function (_p6) {
 						return _user$project$MusicVideo$AtTime(
-							_user$project$MusicVideo$PlayState(_p4));
+							_user$project$MusicVideo$PlayState(_p6));
 					}),
 				_1: {ctor: '[]'}
 			}

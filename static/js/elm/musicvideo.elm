@@ -36,14 +36,15 @@ init =
         ! [ Cmd.none ]
 
 
-flattenPage : LyricPage -> List String
-flattenPage page =
-    List.map (List.map .text) page
+flattenPage : Time -> LyricPage -> List String
+flattenPage time page =
+    List.map
+        (List.map .text << List.filter (Maybe.withDefault False << lyricBefore time)) page
         |> List.map (String.join "")
 
 
-simpleDisplay : Maybe LyricPage -> Html Msg
-simpleDisplay mpage =
+simpleDisplay : Time -> Maybe LyricPage -> Html Msg
+simpleDisplay time mpage =
     case mpage of
         Nothing ->
             Html.div [] []
@@ -51,14 +52,16 @@ simpleDisplay mpage =
         Just page ->
             Html.div
                 []
-                (List.map (Html.p [] << List.singleton << Html.text) (flattenPage page))
+                <| List.map
+                    (Html.p [] << List.singleton << Html.text)
+                    (flattenPage time page)
 
 
 view : Model -> Html Msg
 view model =
     Html.div
         []
-        [ simpleDisplay model.page
+        [ simpleDisplay model.playhead model.page
         , Html.text <| toString <| Time.inSeconds model.playhead
         ]
 
