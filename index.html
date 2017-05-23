@@ -1,53 +1,121 @@
 <html>
 
-<head>
-    <meta name="viewport" content="width=800, initial-scale=1" />
-    <meta charset="utf-8" />
-    <title></title>
-    <link rel="profile" href="https://www.w3.org/2005/10/profile" />
-    <link rel="icon" type="image/png" href="favicon.png" />
-</head>
+    <head>
+        <meta name="viewport" content="width=800, initial-scale=1" />
+        <meta charset="utf-8" />
+        <title></title>
+        <link rel="profile" href="https://www.w3.org/2005/10/profile" />
+        <link rel="icon" type="image/png" href="favicon.png" />
+    </head>
 
-<body>
-</body>
-<div id="musicvideo"></div>
+    <body>
+    </body>
+    <div id="musicvideo"></div>
 
-<script src="static/js/audio/audio5.min.js"></script>
-<script>
-</script>
+    <script src="static/js/audio/audio5.min.js"></script>
+    <script>
+    </script>
 
-<script type="text/javascript" src="static/js/elm.js"></script>
-<script>
-    var app = Elm.MusicVideo.fullscreen();
+    <script type="text/javascript" src="static/js/elm.js"></script>
+    <script>
+     var svgNS = "http://www.w3.org/2000/svg";
 
-    // app.ports.check.subscribe(function (word) {
-    //     var suggestions = spellCheck(word);
-    //     app.ports.suggestions.send(suggestions);
-    // });
+     function makeSvgTextElement() {
+         var svg = document.createElementNS(svgNS, "text");
+         svg.setAttribute('visibility', 'hidden');
+         svg.setAttribute('width', '1024');
+         svg.setAttribute('height', '768');
+         svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+         document.body.appendChild(svg);
+         return svg;
+     }
 
-    function initAudio() {
-        var audio5js = new Audio5js({
-            ready: function () {
+     function getTokenBBox(parentSvg, token) {
+         // should probably create text node outside this function and pass in
+         var data = parentSvg.createTextNode(token);
+         var svgElement = parentSvg.createElementNS(svgns, "text");
 
-                //this points to the Audio5js instance
-                this.on('play', function () {
-                    console.log('play');
-                    app.ports.state.send(true);
-                }, this);
-                this.on('pause', function () {
-                    console.log('pause');
-                    app.ports.state.send(false);
-                }, this);
-                this.on('ended', function () {
-                    console.log('ended');
-                    app.ports.state.send(false);
-                }, this);
+         svgElement.appendChild(data);
+         parentSvg.appendChild(svgElement);
+         var bbox = svgElement.getBBox();
+         parentSvg.removeChild(svgElement);
 
-                this.load('/static/audio/song.mp3');
-                this.play();
-            },
-        });
-    }
-    initAudio();
-</script>
+         return {
+             height: bbox.height,
+             width: bbox.width
+         };
+     }
+
+     function getSizedLyrics(lyrics) {
+         testSvg = makeSvgTextElement();
+         sizedLyrics = [];
+         for (var page in lyrics) {
+             newPage = [];
+             var pageSize = {
+                 height: 0,
+                 width: 0
+             };
+             sizedLyics.push(newPage);
+             for (var line in page) {
+                 newLine = [];
+                 var lineSize = {
+                     height: 0,
+                     width: 0
+                 };
+                 newPage.push(newLine);
+                 for (var token in line) {
+                     var tokenSize = getTokenBBox(token.text)
+                     newLine.push({
+                         lyrics: token,
+                         size: tokenSize
+                     });
+                     lineSize.width = lineSize.width + tokenSize.width;
+                     lineSize.height = Math.max(lineSize.height, tokenSize.height);
+                 }
+                 newPage.push({
+                     lyrics: newLine,
+                     size: lineSize,
+                 });
+                 pageSize.height = pageSize.height + lineSize.height;
+             }
+             sizedLyrics.push({
+                 lyrics: newPage,
+                 size: pageSize
+             });
+         }
+         return sizedLyrics;
+     }
+
+     var app = Elm.MusicVideo.fullscreen();
+
+     app.ports.getSizes.subscribe(function (lyrics) {
+         var sizedLyrics = getSizedLyrics(lyrics);
+         app.ports.gotSizes.send(sizedLyrics);
+     });
+
+     function initAudio() {
+         var audio5js = new Audio5js({
+             ready: function () {
+
+                 //this points to the Audio5js instance
+                 this.on('play', function () {
+                     console.log('play');
+                     app.ports.playState.send(true);
+                 }, this);
+                 this.on('pause', function () {
+                     console.log('pause');
+                     app.ports.playState.send(false);
+                 }, this);
+                 this.on('ended', function () {
+                     console.log('ended');
+                     app.ports.playState.send(false);
+                 }, this);
+
+                 this.load('/static/audio/song.mp3');
+                 this.play();
+             },
+         });
+     }
+     initAudio();
+    </script>
 </html>
