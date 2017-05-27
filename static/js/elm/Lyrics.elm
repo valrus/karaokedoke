@@ -98,7 +98,7 @@ lyrics =
       , [ Lyric "the " <| 31.243303 * Time.second
         , Lyric "fi" <| 31.463392 * Time.second
         , Lyric "nal " <| 31.677678 * Time.second
-        , Lyric "fron " <| 31.902678 * Time.second
+        , Lyric "fron" <| 31.902678 * Time.second
         , Lyric "tier" <| 32.359374 * Time.second
         ]
       ]

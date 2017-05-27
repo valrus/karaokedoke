@@ -11,6 +11,8 @@ import Time exposing (Time)
 
 import Lyrics exposing (..)
 
+import Debug exposing (log)
+
 
 type Msg
     = AtTime ModelMsg
@@ -36,36 +38,27 @@ type alias Position =
     }
 
 
-type alias Sized t =
-    { size : Size
-    , content : t
-    }
-
-
-type alias SvgData =
-    { attrs : List (Svg.Attribute Msg)
-    , elements : SvgElements
-    }
-
-
-type SvgElements =
-    SvgElements (List (Located SvgData))
-
-
 type alias Positioned t =
     { t | pos : Position }
 
 
+type alias Sized t =
+    { content : t
+    , size : Size
+    }
+
 type alias Located t =
-    Positioned (Sized t)
+    { content : t
+    , size : Size
+    , pos : Position
+    }
+
+type alias LocatedLyricLine =
+    Located (List Lyric)
 
 
 type alias SizedLyricPage =
-    Sized (List (SizedLyricsLine))
-
-
-type alias SizedLyricsLine =
-    Sized (List (Sized Lyric))
+    Sized (List (LocatedLyricLine))
 
 
 type alias SizedLyricBook =
@@ -90,101 +83,49 @@ init =
     ! [ getSizes lyrics ]
 
 
-pageLines : Time -> SizedLyricPage -> List String
-pageLines time page =
-    List.map
-        (List.map .text << List.filter
-             <| Maybe.withDefault False << lyricBefore time) page
-        |> List.map (String.join "")
+-- pageLines : Time -> SizedLyricPage -> List String
+-- pageLines time page =
+--     List.map
+--         (List.map .text << List.filter
+--              <| Maybe.withDefault False << lyricBefore time) page
+--         |> List.map (String.join "")
 
 
-nextLyricView : Sized Lyric -> Located (Svg Msg) -> Located (Svg Msg)
-nextLyricView lyric prevSvg =
-    Svg.svg
+stringAttr : (String -> (Svg.Attribute msg)) -> a -> (Svg.Attribute msg)
+stringAttr attr value =
+    attr <| toString value
+
+
+lyricToSvg : Lyric -> Svg Msg
+lyricToSvg lyric =
+    Svg.g
         []
         [ Svg.text_
-              [ SvgAttr.x prevSvg.x + prevSvg.content.width
-              , SvgAttr.y prevSvg.y
-              ]
+              []
               [ Svg.text lyric.text ]
         ]
 
 
-firstLyricSvg : Sized Lyric -> Located SvgData
-firstLyricSvg lyric =
-    { content =
-          { attrs =
-                [ SvgAttr.x "0"
-                , SvgAttr.y "0"
-                ]
-          , elements =
-              [ { attrs = []
-                , elements = SvgElements ()
+lineToSvg : Time -> LocatedLyricLine -> Svg Msg
+lineToSvg time line =
+    Svg.g
+        []
+        [ Svg.text_
+              [ stringAttr SvgAttr.x line.pos.x
+              , stringAttr SvgAttr.y line.pos.y
               ]
-          }
-    , pos = Position 0 0
-    , size = lyric.size
-    }
+              [ List.filter (.time >> (>) time) line.content
+                  |> List.map .text
+                  |> String.join ""
+                  |> Svg.text
+              ]
+        ]
 
 
-lyricLineView : SizedLyricsLine -> List (Located SvgData)
-lyricLineView line =
-    case Maybe.map2 (,) (List.head line.content) (List.tail line.content) of
-        Just ( first, rest ) ->
-            List.scanl
-                nextLyricView
-                (firstLyricSvg first)
-                rest
-
-        Nothing ->
-            Svg.svg [] []
-
-
-firstLineSvg : SizedLyricsLine -> Located SvgData
-firstLineSvg line =
-    { content =
-          { attrs =
-                [ SvgAttr.x "0"
-                , SvgAttr.y "0"
-                ]
-          , elements =
-              SvgElements (lyricLineView line)
-          }
-    , pos = Position 0 0
-    , size = line.size
-    }
-
-
-nextLineView : SizedLyricsLine -> Located SvgData -> Located SvgData
-nextLineView line prevSvg =
-    let
-        pos =
-            Position 0 (prevSvg.pos.y + prevSvg.size.height)
-    in
-        { prevSvg
-            | pos = pos
-            , size = line.size
-            , content =
-              { attrs =
-                    [ SvgAttr.x <| toString pos.x
-                    , SvgAttr.y <| toString pos.y ]
-              , elements =
-                  SvgElements (lyricLineView line)
-              }
-        }
-
-
-lyricPageView : SizedLyricPage -> List (Located SvgData)
-lyricPageView page =
-    case Maybe.map2 (,) (List.head page.content) (List.tail page.content) of
-        Just ( first, rest ) ->
-            List.scanl
-                nextLineView
-                (firstLineSvg first)
-                rest
-
-        Nothing ->
-            [ ]
+lineBefore : Time -> LocatedLyricLine -> Bool
+lineBefore t line =
+    List.head line.content
+        |> lyricBefore t
 
 
 simpleDisplay : Time -> Maybe SizedLyricPage -> Html Msg
@@ -194,16 +135,15 @@ simpleDisplay time mpage =
             Html.div [] []
 
         Just page ->
-            Html.div
+            Svg.svg
                 []
-                lyricPageView page
+                (List.map (lineToSvg time) <| List.filter (lineBefore time) page.content)
 
 
 view : Model -> Html Msg
 view model =
     Html.div
         []
-        
         [ simpleDisplay model.playhead model.page
         ]
 
@@ -213,17 +153,21 @@ last l =
     List.head <| List.reverse l
 
 
-lyricBefore : Time -> Sized Lyric -> Maybe Bool
+lyricBefore : Time -> Maybe Lyric -> Bool
 lyricBefore t token =
-    Just (token.content.time < t)
+    case token of
+        Nothing ->
+            False
+
+        Just tok ->
+          tok.time < t
 
 
 pageIsBefore : Time -> SizedLyricPage -> Bool
 pageIsBefore t page =
     List.head page.content
         |> Maybe.andThen (.content >> List.head)
-        |> Maybe.andThen (lyricBefore t)
-        |> Maybe.withDefault False
+        |> lyricBefore t
 
 
 findPage : SizedLyricBook -> Time -> Maybe SizedLyricPage
@@ -236,7 +180,7 @@ updateModel msg time model =
     case msg of
         SetLyricSizes sizedLyrics ->
             { model
-                  | lyrics = sizedLyrics
+                  | lyrics = (log "lyrics" sizedLyrics)
             }
 
         PlayState playing ->

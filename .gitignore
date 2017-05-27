@@ -2,3 +2,4 @@ elm-stuff
 *.mp3
 elm.js
 .#*
+.python-version
