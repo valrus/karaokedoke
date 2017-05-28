@@ -4,6 +4,7 @@ import AnimationFrame
 import Array exposing (Array)
 import Platform.Cmd exposing ((!))
 import Html exposing (Html)
+import Html.Attributes as HtmlAttr
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 import Task
@@ -80,7 +81,7 @@ init =
     , playing = False
     , lyrics = []
     }
-    ! [ getSizes lyrics ]
+    ! [ getSizes (lyrics, lyricBaseFont) ]
 
 
 -- pageLines : Time -> SizedLyricPage -> List String
@@ -106,6 +107,11 @@ lyricToSvg lyric =
         ]
 
 
+fontSizeToFill : Float -> Float -> Float
+fontSizeToFill extent widthAt32 =
+    (extent / widthAt32) * 32
+
+
 lineToSvg : Time -> LocatedLyricLine -> Svg Msg
 lineToSvg time line =
     Svg.g
@@ -113,6 +119,8 @@ lineToSvg time line =
         [ Svg.text_
               [ stringAttr SvgAttr.x line.pos.x
               , stringAttr SvgAttr.y line.pos.y
+              , SvgAttr.fontSize
+                  <| toString (fontSizeToFill 1024.0 line.size.width) ++ "pt"
               ]
               [ List.filter (.time >> (>) time) line.content
                   |> List.map .text
@@ -132,19 +140,36 @@ simpleDisplay : Time -> Maybe SizedLyricPage -> Html Msg
 simpleDisplay time mpage =
     case mpage of
         Nothing ->
-            Html.div [] []
+            Svg.svg [] []
 
         Just page ->
             Svg.svg
-                []
+                [ SvgAttr.fontFamily lyricBaseFont
+                , SvgAttr.width "100%"
+                , SvgAttr.height "100%"
+                ]
                 (List.map (lineToSvg time) <| List.filter (lineBefore time) page.content)
 
 
 view : Model -> Html Msg
 view model =
     Html.div
-        []
-        [ simpleDisplay model.playhead model.page
+        [ HtmlAttr.style
+              [ ("width", "100%")
+              , ("height", "100%")
+              ]
+        ]
+        [ Html.div
+              [ HtmlAttr.width 1024
+              , HtmlAttr.height 768
+              , HtmlAttr.style
+                  [ ("margin", "auto auto")
+                  , ("width", "1024px")
+                  , ("height", "768px")
+                  ]
+              ]
+              [ simpleDisplay model.playhead model.page
+              ]
         ]
 
 
@@ -217,7 +242,7 @@ port playState : (Bool -> msg) -> Sub msg
 port gotSizes : (SizedLyricBook -> msg) -> Sub msg
 
 
-port getSizes : LyricBook -> Cmd msg
+port getSizes : (LyricBook, String) -> Cmd msg
 
 
 subscriptions : Model -> Sub Msg

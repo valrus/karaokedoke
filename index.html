@@ -20,11 +20,13 @@
     <script>
      var svgNS = "http://www.w3.org/2000/svg";
 
-     function makeSvgTextElement() {
+     function makeSvgTextElement(font) {
          var svg = document.createElementNS(svgNS, "svg");
          svg.setAttribute('visibility', 'hidden');
          svg.setAttribute('width', '1024');
          svg.setAttribute('height', '768');
+         svg.setAttribute('font-family', font);
+         svg.setAttribute('font-size', '32pt');
          svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
          document.body.appendChild(svg);
          return svg;
@@ -37,7 +39,7 @@
 
          svgElement.appendChild(data);
          parentSvg.appendChild(svgElement);
-         var bbox = svgElement.getBBox();
+         var bbox = svgElement.getBoundingClientRect();
          parentSvg.removeChild(svgElement);
 
          return {
@@ -46,8 +48,10 @@
          };
      }
 
-     function getSizedLyrics(lyrics) {
-         var testSvg = makeSvgTextElement();
+     function getSizedLyrics(args) {
+         var lyrics = args[0];
+         var font = args[1];
+         var testSvg = makeSvgTextElement(font);
          var sized_lyrics = [];
          var sized_page = [];
          var this_page = {};
@@ -58,29 +62,29 @@
          var token_size = {height: 0, width: 0};
          var x, y;
          for (var page_index = 0; page_index < lyrics.length; page_index++) {
-             x = y = page_width = page_height = line_width = line_height = 0;
+             x = y = page_size.width = page_size.height = 0;
              sized_page = [];
              this_page = lyrics[page_index];
-             page_size = {height: 0, width: 0};
              for (var line_index = 0; line_index < this_page.length; line_index++) {
                  sized_line = [];
                  this_line = this_page[line_index];
-                 line_height = line_width = x = 0;
+                 x = line_size.height = line_size.width = 0;
                  for (var token_index = 0; token_index < this_line.length; token_index++) {
                      this_token = this_line[token_index];
-                     token_size = getTokenBBox(testSvg, this_token.text)
+                     token_size = getTokenBBox(testSvg, this_token.text);
+                     console.log(token_size);
                      sized_line.push(this_token);
-                     line_size.width = line_size.width + token_size.width;
+                     line_size.width += token_size.width;
                      line_size.height = Math.max(line_size.height, token_size.height);
                  }
+                 y += line_size.height;
                  sized_page.push({
                      content: sized_line,
                      size: {height: line_size.height, width: line_size.width},
-                     pos: {x: x, y: y + line_size.height}
+                     pos: {x: x, y: y}
                  });
                  page_size.height = page_size.height + line_size.height;
                  page_size.width = Math.max(page_size.width, line_size.width);
-                 y += line_size.height;
              }
              sized_lyrics.push({
                  content: sized_page,

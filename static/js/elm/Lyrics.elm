@@ -22,6 +22,11 @@ type alias LyricBook =
     List LyricPage
 
 
+lyricBaseFont : String
+lyricBaseFont =
+    "League Gothic"
+
+
 lyrics : LyricBook
 lyrics =
     [ [ [ Lyric "Light " <| 1.650446 * Time.second
