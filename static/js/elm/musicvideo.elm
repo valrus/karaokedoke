@@ -5,13 +5,12 @@ import Array exposing (Array)
 import Platform.Cmd exposing ((!))
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
+import List.Extra exposing (scanl1)
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 import Task
 import Time exposing (Time)
-
 import Lyrics exposing (..)
-
 import Debug exposing (log)
 
 
@@ -21,7 +20,7 @@ type Msg
 
 
 type ModelMsg
-    = SetLyricSizes SizedLyricBook
+    = SetLyricSizes (Maybe SizedLyricBook)
     | PlayState Bool
     | Animate
     | NoOp
@@ -48,18 +47,29 @@ type alias Sized t =
     , size : Size
     }
 
+
+type alias Height =
+    { min : Float
+    , max : Float
+    }
+
+
+type alias WithDims t =
+    { content : t
+    , width : Float
+    , y : Height
+    }
+
+
 type alias Located t =
     { content : t
     , size : Size
     , pos : Position
     }
 
-type alias LocatedLyricLine =
-    Located (List Lyric)
-
 
 type alias SizedLyricPage =
-    Sized (List (LocatedLyricLine))
+    Sized (List (WithDims LyricLine))
 
 
 type alias SizedLyricBook =
@@ -81,7 +91,12 @@ init =
     , playing = False
     , lyrics = []
     }
-    ! [ getSizes (lyrics, lyricBaseFont) ]
+        ! [ getSizes { lyrics = lyrics
+                     , fontPath = lyricBaseFontTTF
+                     , fontName = lyricBaseFontName
+                     }
+          ]
+
 
 
 -- pageLines : Time -> SizedLyricPage -> List String
@@ -92,45 +107,85 @@ init =
 --         |> List.map (String.join "")
 
 
-stringAttr : (String -> (Svg.Attribute msg)) -> a -> (Svg.Attribute msg)
+controlFontSize : Float
+controlFontSize =
+    512.0
+
+
+stringAttr : (String -> Svg.Attribute msg) -> a -> Svg.Attribute msg
 stringAttr attr value =
     attr <| toString value
 
 
 lyricToSvg : Lyric -> Svg Msg
 lyricToSvg lyric =
-    Svg.g
-        []
-        [ Svg.text_
-              []
-              [ Svg.text lyric.text ]
+    Svg.g []
+        [ Svg.text_ []
+            [ Svg.text lyric.text ]
         ]
+
+
+fontScale : Float -> Float -> Float
+fontScale extent controlWidth =
+    (extent / controlWidth)
 
 
 fontSizeToFill : Float -> Float -> Float
-fontSizeToFill extent widthAt32 =
-    (extent / widthAt32) * 32
+fontSizeToFill extent controlWidth =
+    (fontScale extent controlWidth) * controlFontSize
 
 
-lineToSvg : Time -> LocatedLyricLine -> Svg Msg
-lineToSvg time line =
-    Svg.g
-        []
+lineToSvg : VerticalLine -> Svg Msg
+lineToSvg line =
+    Svg.g []
         [ Svg.text_
-              [ stringAttr SvgAttr.x line.pos.x
-              , stringAttr SvgAttr.y line.pos.y
-              , SvgAttr.fontSize
-                  <| toString (fontSizeToFill 1024.0 line.size.width) ++ "pt"
-              ]
-              [ List.filter (.time >> (>) time) line.content
-                  |> List.map .text
-                  |> String.join ""
-                  |> Svg.text
-              ]
+            [ stringAttr SvgAttr.x 0
+            , stringAttr SvgAttr.y line.y
+            , SvgAttr.fontSize
+                <| toString line.fontSize
+                ++ "px"
+            ]
+            [ line.content
+            ]
         ]
 
 
-lineBefore : Time -> LocatedLyricLine -> Bool
+type alias VerticalLine =
+    { content : Svg Msg
+    , fontSize : Float
+    , height : Height
+    , y : Float
+    }
+
+
+lineWithHeight : Time -> WithDims LyricLine -> VerticalLine
+lineWithHeight time line =
+    let
+        factor = fontScale 1024.0 line.width
+
+    in
+        { content =
+              List.filter (.time >> (>) time) line.content
+            |> List.map .text
+            |> String.join ""
+            |> Svg.text
+        , fontSize = fontSizeToFill 1024.0 line.width
+        , height =
+              { min = factor * line.y.min
+              , max = factor * line.y.max
+              }
+        , y = factor * line.y.max
+        }
+
+
+accumulateHeights : VerticalLine -> VerticalLine -> VerticalLine
+accumulateHeights this prev =
+    { this
+        | y = prev.y + (this.height.max - prev.height.min)
+    }
+
+
+lineBefore : Time -> WithDims LyricLine -> Bool
 lineBefore t line =
     List.head line.content
         |> lyricBefore t
@@ -144,32 +199,34 @@ simpleDisplay time mpage =
 
         Just page ->
             Svg.svg
-                [ SvgAttr.fontFamily lyricBaseFont
+                [ SvgAttr.fontFamily lyricBaseFontName
                 , SvgAttr.width "100%"
                 , SvgAttr.height "100%"
                 ]
-                (List.map (lineToSvg time) <| List.filter (lineBefore time) page.content)
+                <| (List.filter (lineBefore time) page.content
+                   |> List.map (lineWithHeight time)
+                   |> scanl1 accumulateHeights
+                   |> List.map lineToSvg
+                   )
 
 
 view : Model -> Html Msg
 view model =
     Html.div
         [ HtmlAttr.style
-              [ ("width", "100%")
-              , ("height", "100%")
-              ]
+            [ ( "width", "100%" )
+            , ( "height", "100%" )
+            ]
         ]
         [ Html.div
-              [ HtmlAttr.width 1024
-              , HtmlAttr.height 768
-              , HtmlAttr.style
-                  [ ("margin", "auto auto")
-                  , ("width", "1024px")
-                  , ("height", "768px")
-                  ]
-              ]
-              [ simpleDisplay model.playhead model.page
-              ]
+            [ HtmlAttr.width 1024
+            , HtmlAttr.style
+                [ ( "margin", "auto auto" )
+                , ( "width", "1024px" )
+                ]
+            ]
+            [ simpleDisplay model.playhead model.page
+            ]
         ]
 
 
@@ -185,7 +242,7 @@ lyricBefore t token =
             False
 
         Just tok ->
-          tok.time < t
+            tok.time < t
 
 
 pageIsBefore : Time -> SizedLyricPage -> Bool
@@ -203,10 +260,15 @@ findPage book time =
 updateModel : ModelMsg -> Time -> Model -> Model
 updateModel msg time model =
     case msg of
-        SetLyricSizes sizedLyrics ->
-            { model
-                  | lyrics = (log "lyrics" sizedLyrics)
-            }
+        SetLyricSizes result ->
+            case result of
+                Nothing ->
+                    model
+
+                Just sizedLyrics ->
+                    { model
+                        | lyrics = (log "lyrics" sizedLyrics)
+                    }
 
         PlayState playing ->
             { model
@@ -239,10 +301,12 @@ update msg model =
 
 
 port playState : (Bool -> msg) -> Sub msg
-port gotSizes : (SizedLyricBook -> msg) -> Sub msg
 
 
-port getSizes : (LyricBook, String) -> Cmd msg
+port gotSizes : (Maybe SizedLyricBook -> msg) -> Sub msg
+
+
+port getSizes : { lyrics: LyricBook, fontPath: String, fontName: String } -> Cmd msg
 
 
 subscriptions : Model -> Sub Msg

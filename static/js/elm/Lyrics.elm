@@ -22,15 +22,20 @@ type alias LyricBook =
     List LyricPage
 
 
-lyricBaseFont : String
-lyricBaseFont =
-    "League Gothic"
+lyricBaseFontTTF : String
+lyricBaseFontTTF =
+    "static/fonts/leaguegothic/leaguegothic-regular-webfont.ttf"
+
+
+lyricBaseFontName : String
+lyricBaseFontName =
+    "LeagueGothic"
 
 
 lyrics : LyricBook
 lyrics =
-    [ [ [ Lyric "Light " <| 1.650446 * Time.second
-        , Lyric "up" <| 2.34241 * Time.second
+    [ [ [ Lyric "LIGHT " <| 1.650446 * Time.second
+        , Lyric "UP" <| 2.34241 * Time.second
         ]
       , [ Lyric "what " <| 4.483482 * Time.second
         , Lyric "I " <| 4.69866 * Time.second
@@ -42,8 +47,8 @@ lyrics =
         , Lyric "else" <| 6.675 * Time.second
         ]
       ]
-    , [ [ Lyric "My " <| 8.534375 * Time.second
-        , Lyric "trust" <| 9.192857 * Time.second
+    , [ [ Lyric "MY " <| 8.534375 * Time.second
+        , Lyric "TRUST" <| 9.192857 * Time.second
         ]
       , [ Lyric "I " <| 11.52366 * Time.second
         , Lyric "de" <| 11.77366 * Time.second
@@ -57,54 +62,54 @@ lyrics =
     , [ [ Lyric "'cause " <| 14.799107 * Time.second
         , Lyric "I'm " <| 15.035267 * Time.second
         , Lyric "a " <| 15.266517 * Time.second
-        , Lyric "man" <| 15.480803 * Time.second
+        , Lyric "MAN" <| 15.480803 * Time.second
         ]
-      , [ Lyric "and " <| 18.595982 * Time.second
-        , Lyric "men " <| 18.791964 * Time.second
-        , Lyric "don't " <| 19.119642 * Time.second
-        , Lyric "hurt" <| 19.489732 * Time.second
+      , [ Lyric "AND " <| 18.595982 * Time.second
+        , Lyric "MEN " <| 18.791964 * Time.second
+        , Lyric "DON'T " <| 19.119642 * Time.second
+        , Lyric "HURT" <| 19.489732 * Time.second
         ]
-      , [ Lyric "like " <| 19.947767 * Time.second
-        , Lyric "this " <| 20.412053 * Time.second
+      , [ Lyric "LIKE " <| 19.947767 * Time.second
+        , Lyric "THIS " <| 20.412053 * Time.second
         , Lyric "I " <| 20.797321 * Time.second
-        , Lyric "hear" <| 21.23125 * Time.second
+        , Lyric "HEAR" <| 21.23125 * Time.second
         ]
-      , [ Lyric "but " <| 21.681696 * Time.second
-        , Lyric "you " <| 21.896428 * Time.second
-        , Lyric "can" <| 22.313392 * Time.second
-        ]
-      ]
-    , [ [ Lyric "dig " <| 25.694642 * Time.second
-        , Lyric "through" <| 25.975892 * Time.second
-        ]
-      , [ Lyric "the " <| 26.382142 * Time.second
-        , Lyric "crust" <| 26.604017 * Time.second
-        ]
-      , [ Lyric "to " <| 27.000892 * Time.second
-        , Lyric "find" <| 27.250446 * Time.second
-        ]
-      , [ Lyric "the " <| 27.667856 * Time.second
-        , Lyric "fear" <| 27.872321 * Time.second
+      , [ Lyric "BUT " <| 21.681696 * Time.second
+        , Lyric "YOU " <| 21.896428 * Time.second
+        , Lyric "CAN" <| 22.313392 * Time.second
         ]
       ]
-    , [ [ Lyric "be" <| 28.269196 * Time.second
-        , Lyric "tween " <| 28.466071 * Time.second
+    , [ [ Lyric "DIG " <| 25.694642 * Time.second
+        , Lyric "THROUGH" <| 25.975892 * Time.second
         ]
-      , [ Lyric "my " <| 28.934374 * Time.second
-        , Lyric "ears" <| 29.154463 * Time.second
+      , [ Lyric "THE " <| 26.382142 * Time.second
+        , Lyric "CRUST" <| 26.604017 * Time.second
         ]
-      , [ Lyric "be" <| 29.558035 * Time.second
-        , Lyric "hind " <| 29.75491 * Time.second
-        , Lyric "my" <| 30.176785 * Time.second
+      , [ Lyric "TO " <| 27.000892 * Time.second
+        , Lyric "FIND" <| 27.250446 * Time.second
+        ]
+      , [ Lyric "THE " <| 27.667856 * Time.second
+        , Lyric "FEAR" <| 27.872321 * Time.second
         ]
       ]
-    , [ [ Lyric "face" <| 30.798213 * Time.second
+    , [ [ Lyric "BE" <| 28.269196 * Time.second
+        , Lyric "TWEEN " <| 28.466071 * Time.second
         ]
-      , [ Lyric "the " <| 31.243303 * Time.second
-        , Lyric "fi" <| 31.463392 * Time.second
-        , Lyric "nal " <| 31.677678 * Time.second
-        , Lyric "fron" <| 31.902678 * Time.second
-        , Lyric "tier" <| 32.359374 * Time.second
+      , [ Lyric "MY " <| 28.934374 * Time.second
+        , Lyric "EARS" <| 29.154463 * Time.second
+        ]
+      , [ Lyric "BE" <| 29.558035 * Time.second
+        , Lyric "HIND " <| 29.75491 * Time.second
+        , Lyric "MY" <| 30.176785 * Time.second
+        ]
+      ]
+    , [ [ Lyric "FACE" <| 30.798213 * Time.second
+        ]
+      , [ Lyric "THE " <| 31.243303 * Time.second
+        , Lyric "FI" <| 31.463392 * Time.second
+        , Lyric "NAL " <| 31.677678 * Time.second
+        , Lyric "FRON" <| 31.902678 * Time.second
+        , Lyric "TIER" <| 32.359374 * Time.second
         ]
       ]
     ]
