@@ -1,10 +1,10 @@
 port module MusicVideo exposing (..)
 
 import AnimationFrame
-import Array exposing (Array)
 import Platform.Cmd exposing ((!))
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
+import Html.Events
 import List.Extra exposing (scanl1)
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
@@ -17,11 +17,13 @@ import Debug exposing (log)
 type Msg
     = AtTime ModelMsg
     | WithTime ModelMsg Time
+    | TogglePlayback
 
 
 type ModelMsg
     = SetLyricSizes (Maybe SizedLyricBook)
     | PlayState Bool
+    | SyncPlayhead Time
     | Animate
     | NoOp
 
@@ -217,6 +219,7 @@ view model =
             [ ( "width", "100%" )
             , ( "height", "100%" )
             ]
+        , Html.Events.onClick TogglePlayback
         ]
         [ Html.div
             [ HtmlAttr.width 1024
@@ -278,12 +281,23 @@ updateModel msg time model =
         Animate ->
             let
                 newTime =
-                    model.playhead + time
+                    case model.playing of
+                        True ->
+                            model.playhead + time
+
+                        False ->
+                            model.playhead
             in
                 { model
                     | playhead = newTime
                     , page = findPage model.lyrics newTime
                 }
+
+        SyncPlayhead playheadTime ->
+            { model
+                | playhead = playheadTime
+                , page = findPage model.lyrics playheadTime
+            }
 
         NoOp ->
             model
@@ -299,6 +313,9 @@ update msg model =
             updateModel modelMsg time model
                 ! [ Cmd.none ]
 
+        TogglePlayback ->
+            model ! [ togglePlayback model.playing ]
+
 
 port playState : (Bool -> msg) -> Sub msg
 
@@ -306,7 +323,13 @@ port playState : (Bool -> msg) -> Sub msg
 port gotSizes : (Maybe SizedLyricBook -> msg) -> Sub msg
 
 
+port playhead : (Float -> msg) -> Sub msg
+
+
 port getSizes : { lyrics: LyricBook, fontPath: String, fontName: String } -> Cmd msg
+
+
+port togglePlayback : Bool -> Cmd msg
 
 
 subscriptions : Model -> Sub Msg
@@ -314,6 +337,7 @@ subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs (WithTime Animate)
         , playState (AtTime << PlayState)
+        , playhead (AtTime << SyncPlayhead << ((*) Time.second))
         , gotSizes (AtTime << SetLyricSizes)
         ]
 

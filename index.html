@@ -36,6 +36,7 @@
 
     function initAudio() {
         var audio5js = new Audio5js({
+            format_time: false,
             ready: function () {
 
                 //this points to the Audio5js instance
@@ -51,11 +52,20 @@
                     console.log('ended');
                     app.ports.playState.send(false);
                 }, this);
+                this.on('timeupdate', function() {
+                    app.ports.playhead.send(this.position);
+                }, this);
 
                 this.load('/static/audio/song.mp3');
                 this.play();
             },
         });
+
+        app.ports.togglePlayback.subscribe(function (currState) {
+            console.log(audio5js);
+            audio5js.playPause();
+        });
+
     }
     initAudio();
     </script>
