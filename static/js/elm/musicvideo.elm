@@ -281,12 +281,7 @@ updateModel msg time model =
         Animate ->
             let
                 newTime =
-                    case model.playing of
-                        True ->
-                            model.playhead + time
-
-                        False ->
-                            model.playhead
+                    model.playhead + (if model.playing then time else 0)
             in
                 { model
                     | playhead = newTime
