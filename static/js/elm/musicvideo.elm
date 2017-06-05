@@ -266,7 +266,7 @@ footer : Time -> Time -> Bool -> Html Msg
 footer currTime duration dragging =
     Html.footer
         [ HtmlAttr.style
-            [ ( "position", "absolute" )
+            [ ( "position", "fixed" )
             , ( "bottom", "0" )
             , ( "width", "100%" )
             , ( "height", "60px" )
