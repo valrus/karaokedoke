@@ -5,6 +5,7 @@ import Platform.Cmd exposing ((!))
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
+import Json.Decode as Decode
 import List.Extra exposing (scanl1)
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
@@ -18,13 +19,15 @@ type Msg
     = AtTime ModelMsg
     | WithTime ModelMsg Time
     | TogglePlayback
+    | SetPlayhead Float
+    | ScrubberDrag Bool
 
 
 type ModelMsg
     = SetLyricSizes (Maybe SizedLyricBook)
     | PlayState Bool
-    | SyncPlayhead Time
-    | Animate
+    | SyncPlayhead Time Time
+    | Animate (Maybe Time)
     | NoOp
 
 
@@ -83,6 +86,8 @@ type alias Model =
     , page : Maybe (SizedLyricPage)
     , playing : Bool
     , lyrics : SizedLyricBook
+    , duration : Time
+    , dragging : Bool
     }
 
 
@@ -92,11 +97,14 @@ init =
     , page = Nothing
     , playing = False
     , lyrics = []
+    , duration = 0.0
+    , dragging = False
     }
-        ! [ getSizes { lyrics = lyrics
-                     , fontPath = lyricBaseFontTTF
-                     , fontName = lyricBaseFontName
-                     }
+        ! [ getSizes
+                { lyrics = lyrics
+                , fontPath = lyricBaseFontTTF
+                , fontName = lyricBaseFontName
+                }
           ]
 
 
@@ -163,19 +171,19 @@ type alias VerticalLine =
 lineWithHeight : Time -> WithDims LyricLine -> VerticalLine
 lineWithHeight time line =
     let
-        factor = fontScale 1024.0 line.width
-
+        factor =
+            fontScale 1024.0 line.width
     in
         { content =
-              List.filter (.time >> (>) time) line.content
-            |> List.map .text
-            |> String.join ""
-            |> Svg.text
+            List.filter (.time >> (>) time) line.content
+                |> List.map .text
+                |> String.join ""
+                |> Svg.text
         , fontSize = fontSizeToFill 1024.0 line.width
         , height =
-              { min = factor * line.y.min
-              , max = factor * line.y.max
-              }
+            { min = factor * line.y.min
+            , max = factor * line.y.max
+            }
         , y = factor * line.y.max
         }
 
@@ -193,6 +201,14 @@ lineBefore t line =
         |> lyricBefore t
 
 
+computePage : Time -> SizedLyricPage -> List (Svg Msg)
+computePage time page =
+    List.filter (lineBefore time) page.content
+        |> List.map (lineWithHeight time)
+        |> scanl1 accumulateHeights
+        |> List.map lineToSvg
+
+
 simpleDisplay : Time -> Maybe SizedLyricPage -> Html Msg
 simpleDisplay time mpage =
     case mpage of
@@ -205,11 +221,81 @@ simpleDisplay time mpage =
                 , SvgAttr.width "100%"
                 , SvgAttr.height "100%"
                 ]
-                <| (List.filter (lineBefore time) page.content
-                   |> List.map (lineWithHeight time)
-                   |> scanl1 accumulateHeights
-                   |> List.map lineToSvg
-                   )
+                <| computePage time page
+
+
+toCssPercent : Float -> String
+toCssPercent proportion =
+    (toString (proportion * 100)) ++ "%"
+
+
+decodeClickX : Decode.Decoder Float
+decodeClickX =
+    (Decode.map2 (/)
+        (Decode.map2 (-)
+            (Decode.at [ "pageX" ] Decode.float)
+            (Decode.at [ "target", "offsetLeft" ] Decode.float)
+        )
+        (Decode.at [ "target", "offsetWidth" ] Decode.float)
+    )
+
+
+proportionInSeconds : Time -> Float -> Float
+proportionInSeconds duration position =
+    (duration * position) / Time.second
+
+
+mouseScrub : Bool -> Time -> Decode.Decoder Msg
+mouseScrub dragging duration =
+    case dragging of
+        True ->
+            Decode.map
+                (((*) duration)
+                    >> ((SyncPlayhead duration) >> AtTime)) (decodeClickX)
+
+        False ->
+            Decode.succeed (AtTime NoOp)
+
+
+mouseSeek : Time -> Decode.Decoder Msg
+mouseSeek duration =
+    Decode.map ((proportionInSeconds duration) >> SetPlayhead) (decodeClickX)
+
+
+footer : Time -> Time -> Bool -> Html Msg
+footer currTime duration dragging =
+    Html.footer
+        [ HtmlAttr.style
+            [ ( "position", "absolute" )
+            , ( "bottom", "0" )
+            , ( "width", "100%" )
+            , ( "height", "60px" )
+            ]
+        ]
+        [ Html.div
+            [ HtmlAttr.style
+                [ ( "background", "#000" )
+                , ( "width", toCssPercent (currTime / duration) )
+                , ( "height", "100%" )
+                ]
+            ]
+            []
+        , Html.div
+            [ HtmlAttr.style
+                  [ ( "position", "absolute" )
+                  , ( "bottom", "0" )
+                  , ( "background", "#ccc" )
+                  , ( "width", "100%" )
+                  , ( "height", "100%" )
+                  , ( "filter", "alpha(opacity=0)" )
+                  , ( "opacity", "0" )
+                  ]
+            , Html.Events.onMouseDown (ScrubberDrag True)
+            , Html.Events.on "mousemove" (mouseScrub dragging duration)
+            , Html.Events.on "mouseup" (mouseSeek duration)
+            ]
+            []
+        ]
 
 
 view : Model -> Html Msg
@@ -230,6 +316,7 @@ view model =
             ]
             [ simpleDisplay model.playhead model.page
             ]
+        , footer model.playhead model.duration model.dragging
         ]
 
 
@@ -260,8 +347,23 @@ findPage book time =
     last <| List.filter (pageIsBefore time) book
 
 
+animateTime : Model -> Time -> Maybe Time -> Time
+animateTime model delta override =
+    case override of
+        Just newTime ->
+            newTime
+
+        Nothing ->
+            model.playhead
+                + (if model.playing then
+                    delta
+                    else
+                    0
+                  )
+
+
 updateModel : ModelMsg -> Time -> Model -> Model
-updateModel msg time model =
+updateModel msg delta model =
     case msg of
         SetLyricSizes result ->
             case result of
@@ -278,20 +380,20 @@ updateModel msg time model =
                 | playing = playing
             }
 
-        Animate ->
+        Animate timeOverride ->
             let
                 newTime =
-                    model.playhead + (if model.playing then time else 0)
+                    animateTime model delta timeOverride
             in
                 { model
                     | playhead = newTime
                     , page = findPage model.lyrics newTime
                 }
 
-        SyncPlayhead playheadTime ->
+        SyncPlayhead duration playheadTime ->
             { model
-                | playhead = playheadTime
-                , page = findPage model.lyrics playheadTime
+                | duration = duration
+                , playhead = playheadTime
             }
 
         NoOp ->
@@ -309,7 +411,14 @@ update msg model =
                 ! [ Cmd.none ]
 
         TogglePlayback ->
-            model ! [ togglePlayback model.playing ]
+            model ! [ togglePlayback (not model.playing) ]
+
+        SetPlayhead pos ->
+            { model | dragging = False }
+            ! [ seekTo pos ]
+
+        ScrubberDrag dragging ->
+            { model | dragging = dragging } ! [ togglePlayback False ]
 
 
 port playState : (Bool -> msg) -> Sub msg
@@ -318,21 +427,38 @@ port playState : (Bool -> msg) -> Sub msg
 port gotSizes : (Maybe SizedLyricBook -> msg) -> Sub msg
 
 
-port playhead : (Float -> msg) -> Sub msg
+port playhead : (( Float, Float ) -> msg) -> Sub msg
 
 
-port getSizes : { lyrics: LyricBook, fontPath: String, fontName: String } -> Cmd msg
+port getSizes : { lyrics : LyricBook, fontPath : String, fontName : String } -> Cmd msg
 
 
 port togglePlayback : Bool -> Cmd msg
 
 
+port seekTo : Float -> Cmd msg
+
+
+animateMsg : Model -> (Time -> Msg)
+animateMsg model =
+    case model.dragging of
+        True ->
+            WithTime <| Animate <| Just model.playhead
+
+        False ->
+            WithTime <| Animate Nothing
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ AnimationFrame.diffs (WithTime Animate)
+        [ AnimationFrame.diffs <| animateMsg model
         , playState (AtTime << PlayState)
-        , playhead (AtTime << SyncPlayhead << ((*) Time.second))
+        , playhead (AtTime
+                        << (uncurry SyncPlayhead)
+                        << (Tuple.mapFirst ((*) Time.second))
+                        << (Tuple.mapSecond ((*) Time.second))
+                   )
         , gotSizes (AtTime << SetLyricSizes)
         ]
 

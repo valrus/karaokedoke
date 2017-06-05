@@ -40,6 +40,12 @@
             ready: function () {
 
                 //this points to the Audio5js instance
+
+                // This doesn't work; it sends a duration of 0
+                /* this.one('canplay', function () {*/
+                /* app.ports.canPlay.send(this.duration);*/
+                /* }, this);*/
+
                 this.on('play', function () {
                     console.log('play');
                     app.ports.playState.send(true);
@@ -53,7 +59,10 @@
                     app.ports.playState.send(false);
                 }, this);
                 this.on('timeupdate', function() {
-                    app.ports.playhead.send(this.position);
+                    app.ports.playhead.send([this.duration, this.position]);
+                }, this);
+                this.on('seeked', function() {
+                    app.ports.playhead.send([this.duration, this.position]);
                 }, this);
 
                 this.load('/static/audio/song.mp3');
@@ -61,11 +70,19 @@
             },
         });
 
-        app.ports.togglePlayback.subscribe(function (currState) {
-            console.log(audio5js);
-            audio5js.playPause();
+        app.ports.togglePlayback.subscribe(function (play) {
+            console.log('toggle');
+            if (play) {
+                audio5js.play();
+            }
+            else {
+                audio5js.pause();
+            };
         });
 
+        app.ports.seekTo.subscribe(function (position) {
+            audio5js.seek(position);
+        });
     }
     initAudio();
     </script>

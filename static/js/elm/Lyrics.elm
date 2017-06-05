@@ -199,7 +199,7 @@ lyrics =
         ] ],
       [
         [
-          Lyric "BE " <| 71.992903 * Time.second,
+          Lyric "BE" <| 71.992903 * Time.second,
           Lyric "FORE " <| 72.177198 * Time.second,
           Lyric "LONG" <| 72.558207 * Time.second
         ],
