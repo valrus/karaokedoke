@@ -54,15 +54,6 @@ init =
           ]
 
 
-
--- pageLines : Time -> SizedLyricPage -> List String
--- pageLines time page =
---     List.map
---         (List.map .text << List.filter
---              <| Maybe.withDefault False << lyricBefore time) page
---         |> List.map (String.join "")
-
-
 controlFontSize : Float
 controlFontSize =
     512.0
