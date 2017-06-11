@@ -1,34 +1,10 @@
-module Lyrics exposing (..)
+module Lyrics.Data exposing (..)
 
 import Time exposing (Time)
 
+--
 
-type alias Lyric =
-    { text : String
-    , time : Time
-    }
-
-
-type alias LyricLine =
-    List Lyric
-
-
-type alias LyricPage =
-    List LyricLine
-
-
-type alias LyricBook =
-    List LyricPage
-
-
-lyricBaseFontTTF : String
-lyricBaseFontTTF =
-    "static/fonts/leaguegothic/leaguegothic-regular-webfont.ttf"
-
-
-lyricBaseFontName : String
-lyricBaseFontName =
-    "LeagueGothic"
+import Lyrics.Model exposing (LyricBook, Lyric)
 
 
 lyrics : LyricBook

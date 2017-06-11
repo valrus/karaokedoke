@@ -11,8 +11,14 @@ import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 import Task
 import Time exposing (Time)
-import Lyrics exposing (..)
 import Debug exposing (log)
+
+--
+
+import Lyrics.Data exposing (lyrics)
+import Lyrics.Model exposing (Lyric, LyricLine, LyricBook)
+import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName)
+import Model exposing (..)
 
 
 type Msg
@@ -29,66 +35,6 @@ type ModelMsg
     | SyncPlayhead Time Time
     | Animate (Maybe Time)
     | NoOp
-
-
-type alias Size =
-    { height : Float
-    , width : Float
-    }
-
-
-type alias Position =
-    { x : Float
-    , y : Float
-    }
-
-
-type alias Positioned t =
-    { t | pos : Position }
-
-
-type alias Sized t =
-    { content : t
-    , size : Size
-    }
-
-
-type alias Height =
-    { min : Float
-    , max : Float
-    }
-
-
-type alias WithDims t =
-    { content : t
-    , width : Float
-    , y : Height
-    }
-
-
-type alias Located t =
-    { content : t
-    , size : Size
-    , pos : Position
-    }
-
-
-type alias SizedLyricPage =
-    Sized (List (WithDims LyricLine))
-
-
-type alias SizedLyricBook =
-    List SizedLyricPage
-
-
-type alias Model =
-    { playhead : Time
-    , page : Maybe (SizedLyricPage)
-    , playing : Bool
-    , lyrics : SizedLyricBook
-    , duration : Time
-    , dragging : Bool
-    }
 
 
 init : ( Model, Cmd Msg )
@@ -168,6 +114,11 @@ type alias VerticalLine =
     }
 
 
+lyricIsAfter : Time -> Lyric -> Bool
+lyricIsAfter time =
+    .time >> (>) time
+
+
 lineWithHeight : Time -> WithDims LyricLine -> VerticalLine
 lineWithHeight time line =
     let
@@ -175,7 +126,7 @@ lineWithHeight time line =
             fontScale 1024.0 line.width
     in
         { content =
-            List.filter (.time >> (>) time) line.content
+            List.filter (lyricIsAfter time) line.content
                 |> List.map .text
                 |> String.join ""
                 |> Svg.text
@@ -463,6 +414,7 @@ subscriptions model =
         ]
 
 
+main : Program Never Model Msg
 main =
     Html.program
         { init = init
