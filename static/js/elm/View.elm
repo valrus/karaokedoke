@@ -1,4 +1,4 @@
-module View exposing (view, lyricBefore)
+module View exposing (view)
 
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
@@ -18,6 +18,7 @@ import Lyrics.Model exposing (Lyric, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName)
 import Model exposing (Model, SizedLyricPage, WithDims, Height)
 import Update exposing (..)
+import Helpers exposing (lyricBefore)
 
 
 type alias VerticalLine =
@@ -26,16 +27,6 @@ type alias VerticalLine =
     , height : Height
     , y : Float
     }
-
-
-lyricBefore : Time -> Maybe Lyric -> Bool
-lyricBefore t token =
-    case token of
-        Nothing ->
-            False
-
-        Just tok ->
-            tok.time < t
 
 
 lineBefore : Time -> WithDims LyricLine -> Bool
