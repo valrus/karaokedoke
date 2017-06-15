@@ -159,8 +159,8 @@ toCssPercent proportion =
     (toString (proportion * 100)) ++ "%"
 
 
-footer : Time -> Time -> Bool -> Html Msg
-footer currTime duration dragging =
+footer : Model -> Html Msg
+footer model =
     Html.footer
         [ HtmlAttr.style
             [ ( "position", "fixed" )
@@ -172,7 +172,7 @@ footer currTime duration dragging =
         [ Html.div
             [ HtmlAttr.style
                 [ ( "background", "#000" )
-                , ( "width", toCssPercent (currTime / duration) )
+                , ( "width", toCssPercent (model.playhead / model.duration) )
                 , ( "height", "100%" )
                 ]
             ]
@@ -188,8 +188,8 @@ footer currTime duration dragging =
                   , ( "opacity", "0" )
                   ]
             , Html.Events.onMouseDown (ScrubberDrag True)
-            , Html.Events.on "mousemove" (mouseScrub dragging duration)
-            , Html.Events.on "mouseup" (mouseSeek duration)
+            , Html.Events.on "mousemove" (mouseScrub model.dragging model.duration)
+            , Html.Events.on "mouseup" (mouseSeek model.duration)
             ]
             []
         ]
@@ -213,5 +213,5 @@ view model =
             ]
             [ viewPage model.playhead model.page
             ]
-        , footer model.playhead model.duration model.dragging
+        , footer model
         ]
