@@ -3,8 +3,12 @@ module Update exposing (..)
 import Task
 import Time exposing (Time)
 
+import Debug exposing (log)
+
 --
 
+import Lyrics.Model exposing (LyricBook, LyricPage)
+import Lyrics.Style exposing (svgScratchId, lyricBaseFontName)
 import Model exposing (Model, SizedLyricBook, SizedLyricPage)
 import Helpers exposing (lyricBefore)
 import Ports exposing (getSizes, togglePlayback, seekTo)
@@ -19,8 +23,8 @@ type Msg
 
 
 type ModelMsg
-    = SetLyricSizes (Maybe SizedLyricBook)
-    | PlayState Bool
+    = SetPageSizes (Maybe SizedLyricPage)
+    | SetPlayState (Maybe Bool)
     | SyncPlayhead Time Time
     | Animate (Maybe Time)
     | NoOp
@@ -34,7 +38,7 @@ animateTime model delta override =
 
         Nothing ->
             model.playhead
-                + (if model.playing then
+                + (if (model.playing == Just True) then
                     delta
                     else
                     0
@@ -46,54 +50,100 @@ last l =
     List.head <| List.reverse l
 
 
-pageIsBefore : Time -> SizedLyricPage -> Bool
-pageIsBefore t page =
+pageStartTime : LyricPage -> Maybe Time
+pageStartTime page =
+    List.head page
+        |> Maybe.andThen List.head
+        |> Maybe.andThen (Just << .time)
+
+
+sizedPageStartTime : SizedLyricPage -> Maybe Time
+sizedPageStartTime page =
     List.head page.content
-        |> Maybe.andThen (.content >> List.head)
+        |> Maybe.andThen (Just << .content)
+        |> Maybe.andThen List.head
+        |> Maybe.andThen (Just << .time)
+
+
+pageIsBefore : Time -> LyricPage -> Bool
+pageIsBefore t page =
+    List.head page
+        |> Maybe.andThen List.head
         |> lyricBefore t
 
 
-findPage : SizedLyricBook -> Time -> Maybe SizedLyricPage
-findPage book time =
-    last <| List.filter (pageIsBefore time) book
+findPage : Time -> LyricBook -> Maybe LyricPage
+findPage time book =
+    last <| List.filter (pageIsBefore (log "time" time)) book
 
 
-updateModel : ModelMsg -> Time -> Model -> Model
-updateModel msg delta model =
-    case msg of
-        SetLyricSizes result ->
-            case result of
-                Nothing ->
-                    model
+pagesMatch : SizedLyricPage -> LyricPage -> Bool
+pagesMatch sizedPage otherPage =
+    (sizedPageStartTime sizedPage == pageStartTime otherPage)
 
-                Just sizedLyrics ->
-                    { model
-                        | lyrics = sizedLyrics
+
+-- Get the Cmd, if necessary, for fetching sizes for a new page.
+getNewPage : Maybe SizedLyricPage -> Maybe LyricPage -> Cmd Msg
+getNewPage prevPage nextPage =
+    case ( prevPage, nextPage ) of
+        ( _, Nothing ) ->
+            Cmd.none
+
+        ( Nothing, Just newPage ) ->
+            getSizes
+                { lyrics = newPage
+                , scratchId = svgScratchId
+                , fontName = lyricBaseFontName
+                }
+
+        ( Just oldPage, Just newPage ) ->
+            if (pagesMatch oldPage newPage) then
+                Cmd.none
+            else
+                getSizes
+                    { lyrics = newPage
+                    , scratchId = svgScratchId
+                    , fontName = lyricBaseFontName
                     }
 
-        PlayState playing ->
+
+updateModel : ModelMsg -> Time -> Model -> ( Model, Cmd Msg )
+updateModel msg delta model =
+    case msg of
+        SetPageSizes result ->
+            case result of
+                Nothing ->
+                    model ! [ Cmd.none ]
+
+                Just sizedLyricPage ->
+                    { model
+                        | page = Just sizedLyricPage
+                    } ! [ Cmd.none ]
+
+        SetPlayState playing ->
             { model
                 | playing = playing
-            }
+            } ! [ Cmd.none ]
 
         Animate timeOverride ->
             let
                 newTime =
                     animateTime model delta timeOverride
+                newPage =
+                    findPage newTime model.lyrics
             in
                 { model
                     | playhead = newTime
-                    , page = findPage model.lyrics newTime
-                }
+                } ! [ getNewPage model.page newPage ]
 
         SyncPlayhead duration playheadTime ->
             { model
                 | duration = duration
                 , playhead = playheadTime
-            }
+            } ! [ Cmd.none ]
 
         NoOp ->
-            model
+            model ! [ Cmd.none ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -103,11 +153,16 @@ update msg model =
             ( model, Task.perform (WithTime wrappedMsg) Time.now )
 
         WithTime modelMsg time ->
-            updateModel modelMsg time model
-                ! [ Cmd.none ]
+            let
+                result =
+                    updateModel modelMsg time model
+            in
+                (Tuple.first result) ! [ Tuple.second result ]
 
         TogglePlayback ->
-            model ! [ togglePlayback (not model.playing) ]
+            model ! [ togglePlayback
+                        <| Maybe.withDefault False
+                        <| Maybe.map not model.playing ]
 
         SetPlayhead pos ->
             { model | dragging = False }

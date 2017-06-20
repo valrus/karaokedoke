@@ -4,7 +4,7 @@ import Time exposing (Time)
 
 --
 
-import Lyrics.Model exposing (LyricLine)
+import Lyrics.Model exposing (LyricLine, LyricBook)
 
 
 type alias Size =
@@ -60,8 +60,8 @@ type alias SizedLyricBook =
 type alias Model =
     { playhead : Time
     , page : Maybe (SizedLyricPage)
-    , playing : Bool
-    , lyrics : SizedLyricBook
+    , playing : Maybe Bool
+    , lyrics : LyricBook
     , duration : Time
     , dragging : Bool
     }

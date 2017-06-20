@@ -14,7 +14,7 @@ import List.Extra exposing (scanl1)
 --
 
 import Lyrics.Model exposing (Lyric, LyricLine)
-import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName)
+import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
 import Model exposing (Model, SizedLyricPage, WithDims, Height)
 import Scrubber
 import Update exposing (..)
@@ -143,7 +143,17 @@ view model =
             ]
         , Html.Events.onClick TogglePlayback
         ]
-        [ Html.div
+        [ Svg.svg
+            [ SvgAttr.id svgScratchId
+            -- , SvgAttr.display "none"
+            , SvgAttr.visibility "hidden"
+            , SvgAttr.width "0"
+            , SvgAttr.height "0"
+            , SvgAttr.fontFamily lyricBaseFontName
+            , SvgAttr.fontSize "512px"
+            ]
+            []
+        , Html.div
             [ HtmlAttr.width 1024
             , HtmlAttr.style
                 [ ( "margin", "auto auto" )

@@ -4,18 +4,15 @@ import AnimationFrame
 import Html
 import Platform.Cmd exposing ((!))
 import Svg exposing (Svg)
-import Svg.Attributes as SvgAttr
-import Task
 import Time exposing (Time)
-import Debug exposing (log)
 
 --
 
 import Lyrics.Data exposing (lyrics)
 import Lyrics.Model exposing (Lyric, LyricLine, LyricBook)
-import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName)
+import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
 import Model exposing (..)
-import Ports exposing (playState, playhead, gotSizes, getSizes)
+import Ports exposing (..)
 import Update exposing (..)
 import View exposing (view)
 
@@ -24,17 +21,12 @@ init : ( Model, Cmd Msg )
 init =
     { playhead = 0.0
     , page = Nothing
-    , playing = False
-    , lyrics = []
+    , playing = Nothing
+    , lyrics = lyrics
     , duration = 0.0
     , dragging = False
     }
-        ! [ getSizes
-                { lyrics = lyrics
-                , fontPath = lyricBaseFontTTF
-                , fontName = lyricBaseFontName
-                }
-          ]
+        ! [ loadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ] ]
 
 
 lyricToSvg : Lyric -> Svg Msg
@@ -55,17 +47,28 @@ animateMsg model =
             WithTime <| Animate Nothing
 
 
+playStateOnLoad : Bool -> Maybe Bool
+playStateOnLoad success =
+    case success of
+        True ->
+            Just False
+
+        False ->
+            Nothing
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs <| animateMsg model
-        , playState (AtTime << PlayState)
+        , loadedFonts (AtTime << SetPlayState << playStateOnLoad)
+        , playState (AtTime << SetPlayState << Just)
         , playhead (AtTime
                         << (uncurry SyncPlayhead)
                         << (Tuple.mapFirst ((*) Time.second))
                         << (Tuple.mapSecond ((*) Time.second))
                    )
-        , gotSizes (AtTime << SetLyricSizes)
+        , gotSizes (AtTime << SetPageSizes)
         ]
 
 

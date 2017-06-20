@@ -21,17 +21,57 @@
 
     <script>
     var app = Elm.MusicVideo.fullscreen();
+    app.allFonts = {};
 
+    // { lyrics: LyricPage, scratchId: String, fontName: String} -> SizedLyricPage
     app.ports.getSizes.subscribe(function (args) {
-        opentype.load(args.fontPath, function(err, font) {
-            if (err) {
-                alert('Could not load font: ' + err);
-                app.ports.gotSizes.send(null);
-            } else {
-                var sizedLyrics = getSizedLyrics(args.lyrics, args.fontName, font);
-                app.ports.gotSizes.send(sizedLyrics);
-            };
-        });
+        console.log(args);
+        console.log(app.allFonts);
+        var sizedLyricPage = getSizedLyricPage(args.lyrics, args.scratchId, app.allFonts[args.fontName]);
+        app.ports.gotSizes.send(sizedLyricPage);
+    });
+
+
+    function makeSvgTextElement(font) {
+        var svg = document.createElementNS(svgNS, "svg");
+        var textElement = document.createElementNS(svgNS, "text");
+        var data = document.createTextNode("load this font");
+        svg.setAttribute('visibility', 'hidden');
+        svg.setAttribute('width', '0');
+        svg.setAttribute('height', '0');
+        svg.setAttribute('font-family', font);
+        svg.setAttribute('font-size', '512px');
+        svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+        document.body.appendChild(svg);
+        svg.appendChild(textElement);
+        textElement.appendChild(data);
+
+        return svg;
+    }
+
+    // List { name: String, path: String } -> Bool
+    app.ports.loadFonts.subscribe(function(fonts) {
+        var fontsLoaded = 0;
+        var loaderSvgs = {};
+        for (var i = 0; i < fonts.length; i++) {
+            fontArgs = fonts[i];
+            loaderSvgs[fontArgs.name] = makeSvgTextElement(fontArgs.name);
+            opentype.load(fontArgs.path, function(err, font) {
+                if (err) {
+                    alert('Could not load font: ' + err);
+                    app.ports.loadedFonts.send(false);
+                } else {
+                    app.allFonts[fontArgs.name] = font;
+                };
+                document.body.removeChild(loaderSvgs[fontArgs.name]);
+                fontsLoaded++;
+                if (fontsLoaded == fonts.length) {
+                    console.log(app.allFonts);
+                    app.ports.loadedFonts.send(true);
+                }
+            });
+        };
     });
 
     function initAudio() {
@@ -66,7 +106,6 @@
                 }, this);
 
                 this.load('/static/audio/song.mp3');
-                this.play();
             },
         });
 
