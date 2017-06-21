@@ -3,8 +3,6 @@ module Update exposing (..)
 import Task
 import Time exposing (Time)
 
-import Debug exposing (log)
-
 --
 
 import Lyrics.Model exposing (LyricBook, LyricPage)
@@ -74,7 +72,7 @@ pageIsBefore t page =
 
 findPage : Time -> LyricBook -> Maybe LyricPage
 findPage time book =
-    last <| List.filter (pageIsBefore (log "time" time)) book
+    last <| List.filter (pageIsBefore time) book
 
 
 pagesMatch : SizedLyricPage -> LyricPage -> Bool

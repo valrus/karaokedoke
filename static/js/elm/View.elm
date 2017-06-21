@@ -6,6 +6,7 @@ import Html.Events
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 import Time exposing (Time)
+import Debug exposing (log)
 
 --
 
@@ -126,11 +127,34 @@ footer model =
         [ HtmlAttr.style
             [ ( "position", "fixed" )
             , ( "bottom", "0" )
+            , ( "left", "0" )
             , ( "width", "100%" )
             , ( "height", "60px" )
             ]
         ]
         [ Scrubber.view model
+        ]
+
+
+scratch : Model -> Html Msg
+scratch model =
+    Html.div
+        [ HtmlAttr.style
+            [ ( "position", "absolute" )
+            , ( "left", "-1024px" )
+            , ( "width", "1024px" )
+            , ( "height", "768px" )
+            ]
+        ]
+        [ Svg.svg
+            [ SvgAttr.id svgScratchId
+            , SvgAttr.visibility "hidden"
+            , SvgAttr.width "1024px"
+            , SvgAttr.height "768px"
+            , SvgAttr.fontFamily lyricBaseFontName
+            , SvgAttr.fontSize "512px"
+            ]
+            []
         ]
 
 
@@ -143,16 +167,7 @@ view model =
             ]
         , Html.Events.onClick TogglePlayback
         ]
-        [ Svg.svg
-            [ SvgAttr.id svgScratchId
-            -- , SvgAttr.display "none"
-            , SvgAttr.visibility "hidden"
-            , SvgAttr.width "0"
-            , SvgAttr.height "0"
-            , SvgAttr.fontFamily lyricBaseFontName
-            , SvgAttr.fontSize "512px"
-            ]
-            []
+        [ scratch model
         , Html.div
             [ HtmlAttr.width 1024
             , HtmlAttr.style
