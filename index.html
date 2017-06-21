@@ -14,7 +14,7 @@
     </body>
     <div id="musicvideo"></div>
 
-    <script type="text/javascript" src="static/js/audio/audio5.min.js"></script>
+    <script type="text/javascript" src="static/js/audio/audio5.js"></script>
     <script type="text/javascript" src="static/js/text/opentype.js"></script>
 
     <script type="text/javascript" src="static/js/elm.js"></script>
@@ -26,8 +26,6 @@
 
     // { lyrics: LyricPage, scratchId: String, fontName: String} -> SizedLyricPage
     app.ports.getSizes.subscribe(function (args) {
-        console.log(args);
-        console.log(app.allFonts);
         var sizedLyricPage = getSizedLyricPage(args.lyrics, args.scratchId, app.allFonts[args.fontName]);
         app.ports.gotSizes.send(sizedLyricPage);
     });
@@ -68,7 +66,6 @@
                 document.body.removeChild(loaderSvgs[fontArgs.name]);
                 fontsLoaded++;
                 if (fontsLoaded == fonts.length) {
-                    console.log(app.allFonts);
                     app.ports.loadedFonts.send(true);
                 }
             });
@@ -79,6 +76,8 @@
         var audio5js = new Audio5js({
             format_time: false,
             ready: function () {
+
+                this.load('/static/audio/song.mp3');
 
                 //this points to the Audio5js instance
 
@@ -99,15 +98,21 @@
                     console.log('ended');
                     app.ports.playState.send(false);
                 }, this);
+                this.on('loadedmetadata', function() {
+                    console.log('loadedmetadata');
+                    console.log(this);
+                }, this);
                 this.on('timeupdate', function() {
-                    app.ports.playhead.send([this.duration, this.position]);
+                    if (this.duration && this.position) {
+                        console.log(this.position);
+                        app.ports.playhead.send([this.duration, this.position]);
+                    }
                 }, this);
                 this.on('seeked', function() {
+                    console.log(this.position);
                     app.ports.playhead.send([this.duration, this.position]);
                 }, this);
-
-                this.load('/static/audio/song.mp3');
-            },
+            }
         });
 
         app.ports.togglePlayback.subscribe(function (play) {
@@ -121,6 +126,7 @@
         });
 
         app.ports.seekTo.subscribe(function (position) {
+            console.log(position);
             audio5js.seek(position);
         });
     }
