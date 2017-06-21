@@ -6,7 +6,6 @@ import Html.Events
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
 import Time exposing (Time)
-import Debug exposing (log)
 
 --
 
@@ -129,7 +128,7 @@ footer model =
             , ( "bottom", "0" )
             , ( "left", "0" )
             , ( "width", "100%" )
-            , ( "height", "60px" )
+            , ( "height", (toString Scrubber.scrubberHeight) ++ "px" )
             ]
         ]
         [ Scrubber.view model
