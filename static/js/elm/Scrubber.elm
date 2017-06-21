@@ -13,6 +13,11 @@ import Model exposing (Model)
 import Update exposing (..)
 
 
+scrubberHeight : Int
+scrubberHeight =
+    60
+
+
 toCssPercent : Float -> String
 toCssPercent proportion =
     (toString (proportion * 100)) ++ "%"
@@ -56,25 +61,34 @@ timeAsPercent duration position =
     (position / duration) * 100
 
 
-lyricMark : Time -> Lyric -> Html msg
-lyricMark duration lyric =
-    Html.div 
-        [ HtmlAttr.style
-            [ ( "position", "absolute" )
-            , ( "left", (toString <| timeAsPercent duration lyric.time) ++ "%" )
-            , ( "width", "1px" )
-            , ( "height", "100%" )
-            , ( "display", "block" )
-            , ( "overflow", "auto" )
-            , ( "background-color", "#a00" )
+lyricMark : Time -> Int -> Int -> Lyric -> Html msg
+lyricMark duration tokenCount index lyric =
+    let vspace =
+        (scrubberHeight - 8) // tokenCount
+    in
+        Html.div 
+            [ HtmlAttr.style
+                [ ( "position", "absolute" )
+                , ( "left", (toString <| timeAsPercent duration lyric.time) ++ "%" )
+                , ( "top", (toString <| (index * vspace) + 4) ++ "px" )
+                , ( "width", "5px" )
+                , ( "height", (toString <| vspace - 2) ++ "px" )
+                , ( "display", "block" )
+                , ( "overflow", "auto" )
+                , ( "background-color", "#a00" )
+                ]
             ]
-        ]
-        [ ]
+            [ ]
 
 
-lineMarks : Time -> LyricLine -> List (Html Msg)
-lineMarks duration line =
-    List.map (lyricMark duration) line
+lineMarks : Time -> Int -> LyricLine -> List (Html Msg)
+lineMarks duration tokenCount line =
+    List.indexedMap (lyricMark duration tokenCount) line
+
+
+countPageTokens : LyricPage -> Int
+countPageTokens page =
+    List.map List.length page |> List.sum
 
 
 pageMarks : Time -> LyricPage -> List (Html Msg)
@@ -87,7 +101,8 @@ pageMarks duration page =
             , ( "background-color", "transparent" )
             ]
         ]
-        <| List.concatMap (lineMarks duration) page
+        <| List.indexedMap (lyricMark duration <| countPageTokens page)
+        <| List.concat page
     ]
 
 
