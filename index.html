@@ -117,17 +117,19 @@
 
         app.ports.togglePlayback.subscribe(function (play) {
             console.log('toggle');
+            var audio = document.getElementById('audio-player');
             if (play) {
-                audio5js.play();
+                audio.play();
             }
             else {
-                audio5js.pause();
+                audio.pause();
             };
         });
 
         app.ports.seekTo.subscribe(function (position) {
             console.log(position);
-            audio5js.seek(position);
+            var audio = document.getElementById('audio-player');
+            audio.currentTime = position;
         });
     }
     initAudio();
