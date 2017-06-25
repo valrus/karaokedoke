@@ -155,7 +155,7 @@ scratch model =
             ]
             []
         ]
-
+        
 
 view : Model -> Html Msg
 view model =
