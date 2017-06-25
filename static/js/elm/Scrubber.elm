@@ -124,7 +124,7 @@ audioPlayer model =
         [ HtmlAttr.id "audio-player"
         , HtmlAttr.src "static/audio/song.mp3"
         , HtmlAttr.type_ "audio/mp3"
-        , onTimeUpdate SyncPlayhead
+        , onTimeUpdate (SyncPlayhead >> AtTime)
         ]
         [ ]
 
