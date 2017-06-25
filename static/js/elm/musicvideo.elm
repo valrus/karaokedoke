@@ -11,7 +11,6 @@ import Time exposing (Time)
 import Lyrics.Data exposing (lyrics)
 import Lyrics.Model exposing (Lyric, LyricLine, LyricBook)
 import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
-import Player.Model exposing (PlayState(..))
 import Model exposing (..)
 import Ports exposing (..)
 import Update exposing (..)
@@ -20,11 +19,7 @@ import View exposing (view)
 
 init : ( Model, Cmd Msg )
 init =
-    { player =
-        { playhead = 0.0
-        , duration = 0.0
-        , state = Loading
-        }
+    { playhead = 0.0
     , page = Nothing
     , playing = Nothing
     , lyrics = lyrics
