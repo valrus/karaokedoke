@@ -23,7 +23,7 @@ type Msg
 type ModelMsg
     = SetPageSizes (Maybe SizedLyricPage)
     | SetPlayState (Maybe Bool)
-    | SyncPlayhead Time Time
+    | SyncPlayhead Time
     | Animate (Maybe Time)
     | NoOp
 
@@ -134,10 +134,9 @@ updateModel msg delta model =
                     | playhead = newTime
                 } ! [ getNewPage model.page newPage ]
 
-        SyncPlayhead duration playheadTime ->
+        SyncPlayhead playheadTime ->
             { model
-                | duration = duration
-                , playhead = playheadTime
+                | playhead = playheadTime
             } ! [ Cmd.none ]
 
         NoOp ->

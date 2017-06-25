@@ -2,7 +2,7 @@ module Scrubber exposing (..)
 
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
-import Html.Events
+import Html.Events exposing (on, onMouseDown)
 import Json.Decode as Decode
 import Time exposing (Time)
 
@@ -45,7 +45,7 @@ mouseScrub dragging duration =
         True ->
             Decode.map
                 (((*) duration)
-                    >> ((SyncPlayhead duration) >> AtTime)) (decodeClickX)
+                    >> (SyncPlayhead >> AtTime)) (decodeClickX)
 
         False ->
             Decode.succeed (AtTime NoOp)
@@ -53,7 +53,7 @@ mouseScrub dragging duration =
 
 mouseSeek : Time -> Decode.Decoder Msg
 mouseSeek duration =
-    Decode.map ((proportionInSeconds duration) >> SetPlayhead) (decodeClickX)
+    Decode.map SetPlayhead decodeClickX
 
 
 timeAsPercent : Time -> Time -> Float
@@ -111,6 +111,24 @@ eventMarks duration book =
     List.concatMap (pageMarks duration) book
 
 
+onTimeUpdate : (Time -> msg) -> Html.Attribute msg
+onTimeUpdate msg =
+    on "timeupdate" 
+        <| Decode.map msg
+        <| Decode.at [ "target", "currentTime" ] Decode.float
+
+
+audioPlayer : Model -> Html Msg
+audioPlayer model =
+    Html.audio
+        [ HtmlAttr.id "audio-player"
+        , HtmlAttr.src "static/audio/song.mp3"
+        , HtmlAttr.type_ "audio/mp3"
+        , onTimeUpdate SyncPlayhead
+        ]
+        [ ]
+
+
 view : Model -> Html Msg
 view model =
     Html.div
@@ -118,7 +136,8 @@ view model =
             [ ( "id", "scrubber" )
             ]
         ]
-        [ Html.div
+        [ audioPlayer model
+        , Html.div
             [ HtmlAttr.style
                 [ ( "background", "#000" )
                 , ( "width", toCssPercent (model.playhead / model.duration) )
@@ -134,9 +153,9 @@ view model =
                 , ( "width", "100%" )
                 , ( "height", "100%" )
                 ]
-            , Html.Events.onMouseDown (ScrubberDrag True)
-            , Html.Events.on "mousemove" (mouseScrub model.dragging model.duration)
-            , Html.Events.on "mouseup" (mouseSeek model.duration)
+            , onMouseDown (ScrubberDrag True)
+            , on "mousemove" (mouseScrub model.dragging model.duration)
+            , on "mouseup" (mouseSeek model.duration)
             ]
             (eventMarks model.duration model.lyrics)
         ]
