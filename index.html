@@ -12,8 +12,6 @@
 
     <body>
     </body>
-    <div id="musicvideo"></div>
-
     <script type="text/javascript" src="static/js/audio/audio5.js"></script>
     <script type="text/javascript" src="static/js/text/opentype.js"></script>
 
@@ -72,66 +70,22 @@
         };
     });
 
-    function initAudio() {
-        var audio5js = new Audio5js({
-            format_time: false,
-            ready: function () {
+    app.ports.togglePlayback.subscribe(function (play) {
+        console.log('toggle');
+        var audio = document.getElementById('audio-player');
+        if (play) {
+            audio.play();
+        }
+        else {
+            audio.pause();
+        };
+    });
 
-                this.load('/static/audio/song.mp3');
-
-                //this points to the Audio5js instance
-
-                // This doesn't work; it sends a duration of 0
-                /* this.one('canplay', function () {*/
-                /* app.ports.canPlay.send(this.duration);*/
-                /* }, this);*/
-
-                this.on('play', function () {
-                    console.log('play');
-                    app.ports.playState.send(true);
-                }, this);
-                this.on('pause', function () {
-                    console.log('pause');
-                    app.ports.playState.send(false);
-                }, this);
-                this.on('ended', function () {
-                    console.log('ended');
-                    app.ports.playState.send(false);
-                }, this);
-                this.on('loadedmetadata', function() {
-                    console.log('loadedmetadata');
-                    console.log(this);
-                }, this);
-                this.on('timeupdate', function() {
-                    if (this.duration && this.position) {
-                        console.log(this.position);
-                        app.ports.playhead.send([this.duration, this.position]);
-                    }
-                }, this);
-                this.on('seeked', function() {
-                    console.log(this.position);
-                    app.ports.playhead.send([this.duration, this.position]);
-                }, this);
-            }
-        });
-
-        app.ports.togglePlayback.subscribe(function (play) {
-            console.log('toggle');
-            var audio = document.getElementById('audio-player');
-            if (play) {
-                audio.play();
-            }
-            else {
-                audio.pause();
-            };
-        });
-
-        app.ports.seekTo.subscribe(function (position) {
-            console.log(position);
-            var audio = document.getElementById('audio-player');
-            audio.currentTime = position;
-        });
-    }
-    initAudio();
+    app.ports.seekTo.subscribe(function (position) {
+        console.log(position);
+        var audio = document.getElementById('audio-player');
+        audio.currentTime = position;
+        app.ports.playhead.send(audio.currentTime);
+    });
     </script>
 </html>

@@ -111,24 +111,6 @@ eventMarks duration book =
     List.concatMap (pageMarks duration) book
 
 
-onTimeUpdate : (Time -> msg) -> Html.Attribute msg
-onTimeUpdate msg =
-    on "timeupdate" 
-        <| Decode.map msg
-        <| Decode.at [ "target", "currentTime" ] Decode.float
-
-
-audioPlayer : Model -> Html Msg
-audioPlayer model =
-    Html.audio
-        [ HtmlAttr.id "audio-player"
-        , HtmlAttr.src "static/audio/song.mp3"
-        , HtmlAttr.type_ "audio/mp3"
-        , onTimeUpdate (SyncPlayhead >> AtTime)
-        ]
-        [ ]
-
-
 view : Model -> Html Msg
 view model =
     Html.div
@@ -136,8 +118,7 @@ view model =
             [ ( "id", "scrubber" )
             ]
         ]
-        [ audioPlayer model
-        , Html.div
+        [ Html.div
             [ HtmlAttr.style
                 [ ( "background", "#000" )
                 , ( "width", toCssPercent (model.playhead / model.duration) )

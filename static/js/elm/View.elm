@@ -13,6 +13,7 @@ import List.Extra exposing (scanl1)
 
 --
 
+import AudioPlayer
 import Lyrics.Model exposing (Lyric, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
 import Model exposing (Model, SizedLyricPage, WithDims, Height)
@@ -167,6 +168,7 @@ view model =
         , Html.Events.onClick TogglePlayback
         ]
         [ scratch model
+        , AudioPlayer.view model
         , Html.div
             [ HtmlAttr.width 1024
             , HtmlAttr.style

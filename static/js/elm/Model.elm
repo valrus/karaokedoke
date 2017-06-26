@@ -57,10 +57,18 @@ type alias SizedLyricBook =
     List SizedLyricPage
 
 
+type PlayState
+    = Loading
+    | Paused
+    | Playing
+    | Ended
+    | Error
+
+
 type alias Model =
     { playhead : Time
     , page : Maybe (SizedLyricPage)
-    , playing : Maybe Bool
+    , playing : PlayState
     , lyrics : LyricBook
     , duration : Time
     , dragging : Bool

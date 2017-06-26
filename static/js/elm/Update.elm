@@ -2,12 +2,13 @@ module Update exposing (..)
 
 import Task
 import Time exposing (Time)
+import Debug exposing (log)
 
 --
 
 import Lyrics.Model exposing (LyricBook, LyricPage)
 import Lyrics.Style exposing (svgScratchId, lyricBaseFontName)
-import Model exposing (Model, SizedLyricBook, SizedLyricPage)
+import Model exposing (Model, SizedLyricBook, SizedLyricPage, PlayState(..))
 import Helpers exposing (lyricBefore)
 import Ports exposing (getSizes, togglePlayback, seekTo)
 
@@ -22,7 +23,8 @@ type Msg
 
 type ModelMsg
     = SetPageSizes (Maybe SizedLyricPage)
-    | SetPlayState (Maybe Bool)
+    | SetDuration Time
+    | SetPlayState PlayState
     | SyncPlayhead Time
     | Animate (Maybe Time)
     | NoOp
@@ -36,7 +38,7 @@ animateTime model delta override =
 
         Nothing ->
             model.playhead
-                + (if (model.playing == Just True) then
+                + (if (model.playing == Playing) then
                     delta
                     else
                     0
@@ -118,9 +120,14 @@ updateModel msg delta model =
                         | page = Just sizedLyricPage
                     } ! [ Cmd.none ]
 
+        SetDuration time ->
+            { model
+                | duration = (log "SetDuration" time)
+            } ! [ Cmd.none ]
+
         SetPlayState playing ->
             { model
-                | playing = playing
+                | playing = (log "SetPlayState" playing)
             } ! [ Cmd.none ]
 
         Animate timeOverride ->
@@ -143,6 +150,19 @@ updateModel msg delta model =
             model ! [ Cmd.none ]
 
 
+togglePlaybackIfPossible : PlayState -> Cmd Msg
+togglePlaybackIfPossible state =
+    case state of
+        Playing ->
+            togglePlayback False
+
+        Paused ->
+            togglePlayback True
+
+        _ ->
+            Cmd.none
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -157,9 +177,7 @@ update msg model =
                 (Tuple.first result) ! [ Tuple.second result ]
 
         TogglePlayback ->
-            model ! [ togglePlayback
-                        <| Maybe.withDefault False
-                        <| Maybe.map not model.playing ]
+            model ! [ togglePlaybackIfPossible model.playing ]
 
         SetPlayhead pos ->
             { model | dragging = False }

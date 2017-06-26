@@ -21,7 +21,7 @@ init : ( Model, Cmd Msg )
 init =
     { playhead = 0.0
     , page = Nothing
-    , playing = Nothing
+    , playing = Loading
     , lyrics = lyrics
     , duration = 0.0
     , dragging = False
@@ -47,14 +47,24 @@ animateMsg model =
             WithTime <| Animate Nothing
 
 
-playStateOnLoad : Bool -> Maybe Bool
+playStateOnLoad : Bool -> PlayState
 playStateOnLoad success =
     case success of
         True ->
-            Just False
+            Loading
 
         False ->
-            Nothing
+            Error
+
+
+toPlayState : Bool -> PlayState
+toPlayState playing =
+    case playing of
+        True ->
+            Playing
+
+        False ->
+            Paused
 
 
 subscriptions : Model -> Sub Msg
@@ -62,7 +72,7 @@ subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs <| animateMsg model
         , loadedFonts (AtTime << SetPlayState << playStateOnLoad)
-        , playState (AtTime << SetPlayState << Just)
+        , playState (AtTime << SetPlayState << toPlayState)
         , gotSizes (AtTime << SetPageSizes)
         ]
 
