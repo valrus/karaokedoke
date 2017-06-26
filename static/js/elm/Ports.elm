@@ -16,7 +16,7 @@ port playState : (Bool -> msg) -> Sub msg
 port gotSizes : (Maybe SizedLyricPage -> msg) -> Sub msg
 
 
-port playhead : (( Float, Float ) -> msg) -> Sub msg
+port playhead : (Float -> msg) -> Sub msg
 
 
 -- Outgoing

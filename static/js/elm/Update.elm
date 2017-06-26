@@ -181,7 +181,7 @@ update msg model =
 
         SetPlayhead pos ->
             { model | dragging = False }
-            ! [ seekTo pos ]
+            ! [ seekTo (log "seekTo" pos) ]
 
         ScrubberDrag dragging ->
             { model | dragging = dragging } ! [ togglePlayback False ]

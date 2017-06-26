@@ -53,7 +53,7 @@ mouseScrub dragging duration =
 
 mouseSeek : Time -> Decode.Decoder Msg
 mouseSeek duration =
-    Decode.map SetPlayhead decodeClickX
+    Decode.map ((proportionInSeconds duration) >> SetPlayhead) decodeClickX
 
 
 timeAsPercent : Time -> Time -> Float
