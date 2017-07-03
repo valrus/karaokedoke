@@ -3,8 +3,10 @@ module Scrubber exposing (..)
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events exposing (on, onMouseDown)
+import Html.Lazy exposing (lazy2)
 import Json.Decode as Decode
 import Time exposing (Time)
+import Debug exposing (log)
 
 --
 
@@ -63,16 +65,19 @@ timeAsPercent duration position =
 
 lyricMark : Time -> Int -> Int -> Lyric -> Html msg
 lyricMark duration tokenCount index lyric =
-    let vspace =
-        (scrubberHeight - 8) // tokenCount
+    let
+        vspace =
+            (scrubberHeight - 8) // tokenCount
+        markHeight =
+            min 4 <| vspace - 1
     in
         Html.div 
             [ HtmlAttr.style
                 [ ( "position", "absolute" )
                 , ( "left", (toString <| timeAsPercent duration lyric.time) ++ "%" )
-                , ( "top", (toString <| (index * vspace) + 4) ++ "px" )
+                , ( "top", (toString <| (index * (markHeight + 1)) + 4) ++ "px" )
                 , ( "width", "5px" )
-                , ( "height", (toString <| vspace - 2) ++ "px" )
+                , ( "height", (toString <| markHeight) ++ "px" )
                 , ( "display", "block" )
                 , ( "overflow", "auto" )
                 , ( "background-color", "#a00" )
@@ -106,9 +111,11 @@ pageMarks duration page =
     ]
 
 
-eventMarks : Time -> LyricBook -> List (Html Msg)
+eventMarks : Time -> LyricBook -> Html Msg
 eventMarks duration book =
-    List.concatMap (pageMarks duration) book
+    Html.div
+        [ HtmlAttr.id "marks" ]
+        <| List.concatMap (pageMarks duration) book
 
 
 view : Model -> Html Msg
@@ -138,5 +145,6 @@ view model =
             , on "mousemove" (mouseScrub model.dragging model.duration)
             , on "mouseup" (mouseSeek model.duration)
             ]
-            (eventMarks model.duration model.lyrics)
+            [ lazy2 eventMarks model.duration model.lyrics
+            ]
         ]
