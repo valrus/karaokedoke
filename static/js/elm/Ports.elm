@@ -22,13 +22,13 @@ port playhead : (Float -> msg) -> Sub msg
 -- Outgoing
 
 
-port loadFonts : List { name : String, path : String } -> Cmd msg
+port jsLoadFonts : List { name : String, path : String } -> Cmd msg
 
 
-port getSizes : { lyrics : LyricPage, scratchId : String, fontName : String } -> Cmd msg
+port jsGetSizes : { lyrics : LyricPage, scratchId : String, fontName : String } -> Cmd msg
 
 
-port togglePlayback : Bool -> Cmd msg
+port jsSetPlayback : Bool -> Cmd msg
 
 
-port seekTo : Float -> Cmd msg
+port jsSeekTo : Float -> Cmd msg

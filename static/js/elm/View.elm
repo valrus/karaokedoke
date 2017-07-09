@@ -17,7 +17,7 @@ import AudioPlayer
 import Lyrics.Model exposing (Lyric, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
 import Model exposing (Model, SizedLyricPage, WithDims, Height)
-import Scrubber
+import Scrubber.View
 import Update exposing (..)
 import Helpers exposing (lyricBefore)
 
@@ -129,10 +129,10 @@ footer model =
             , ( "bottom", "0" )
             , ( "left", "0" )
             , ( "width", "100%" )
-            , ( "height", (toString Scrubber.scrubberHeight) ++ "px" )
+            , ( "height", (toString Scrubber.View.scrubberHeight) ++ "px" )
             ]
         ]
-        [ Scrubber.view model
+        [ Scrubber.View.view model.scrubber model.lyrics
         ]
 
 
@@ -176,7 +176,7 @@ view model =
                 , ( "width", "1024px" )
                 ]
             ]
-            [ viewPage model.playhead model.page
+            [ viewPage model.scrubber.playhead model.page
             ]
         , footer model
         ]

@@ -22,7 +22,7 @@
     app.allFonts = {};
 
     // { lyrics: LyricPage, scratchId: String, fontName: String} -> SizedLyricPage
-    app.ports.getSizes.subscribe(function (args) {
+    app.ports.jsGetSizes.subscribe(function (args) {
         var sizedLyricPage = getSizedLyricPage(args.lyrics, args.scratchId, app.allFonts[args.fontName]);
         app.ports.gotSizes.send(sizedLyricPage);
     });
@@ -47,7 +47,7 @@
     }
 
     // List { name: String, path: String } -> Bool
-    app.ports.loadFonts.subscribe(function(fonts) {
+    app.ports.jsLoadFonts.subscribe(function(fonts) {
         var fontsLoaded = 0;
         var loaderSvgs = {};
         for (var i = 0; i < fonts.length; i++) {
@@ -69,18 +69,22 @@
         };
     });
 
-    app.ports.togglePlayback.subscribe(function (play) {
+    app.ports.jsSetPlayback.subscribe(function (play) {
         console.log('toggle');
         var audio = document.getElementById('audio-player');
+        var playing = false;
         if (play) {
             audio.play();
+            playing = true;
         }
         else {
             audio.pause();
+            playing = false;
         };
+        app.ports.playState.send(playing);
     });
 
-    app.ports.seekTo.subscribe(function (position) {
+    app.ports.jsSeekTo.subscribe(function (position) {
         console.log(position);
         var audio = document.getElementById('audio-player');
         audio.currentTime = position;

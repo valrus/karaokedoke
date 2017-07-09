@@ -5,6 +5,7 @@ import Time exposing (Time)
 --
 
 import Lyrics.Model exposing (LyricLine, LyricBook)
+import Scrubber.Model
 
 
 type alias Size =
@@ -66,10 +67,8 @@ type PlayState
 
 
 type alias Model =
-    { playhead : Time
-    , page : Maybe (SizedLyricPage)
+    { page : Maybe (SizedLyricPage)
     , playing : PlayState
     , lyrics : LyricBook
-    , duration : Time
-    , dragging : Bool
+    , scrubber : Scrubber.Model.Model
     }

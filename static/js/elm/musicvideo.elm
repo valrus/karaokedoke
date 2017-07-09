@@ -11,22 +11,21 @@ import Time exposing (Time)
 import Lyrics.Data exposing (lyrics)
 import Lyrics.Model exposing (Lyric, LyricLine, LyricBook)
 import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
+import Scrubber.Model
 import Model exposing (..)
-import Ports exposing (..)
+import Ports
 import Update exposing (..)
 import View exposing (view)
 
 
 init : ( Model, Cmd Msg )
 init =
-    { playhead = 0.0
-    , page = Nothing
+    { page = Nothing
     , playing = Loading
     , lyrics = lyrics
-    , duration = 0.0
-    , dragging = False
+    , scrubber = Scrubber.Model.init
     }
-        ! [ loadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ] ]
+        ! [ Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ] ]
 
 
 lyricToSvg : Lyric -> Svg Msg
@@ -37,11 +36,11 @@ lyricToSvg lyric =
         ]
 
 
-animateMsg : Model -> (Time -> Msg)
-animateMsg model =
-    case model.dragging of
+animateMsg : Scrubber.Model.Model -> (Time -> Msg)
+animateMsg scrubber =
+    case scrubber.dragging of
         True ->
-            WithTime <| Animate <| Just model.playhead
+            WithTime <| Animate <| Just scrubber.playhead
 
         False ->
             WithTime <| Animate Nothing
@@ -70,10 +69,10 @@ toPlayState playing =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ AnimationFrame.diffs <| animateMsg model
-        , loadedFonts (AtTime << SetPlayState << playStateOnLoad)
-        , playState (AtTime << SetPlayState << toPlayState)
-        , gotSizes (AtTime << SetPageSizes)
+        [ AnimationFrame.diffs <| animateMsg model.scrubber
+        , Ports.loadedFonts (AtTime << SetPlayState << playStateOnLoad)
+        , Ports.playState (AtTime << SetPlayState << toPlayState)
+        , Ports.gotSizes (AtTime << SetPageSizes)
         ]
 
 
