@@ -1,26 +1,29 @@
-module Scrubber exposing (..)
+module Scrubber.View exposing (view, scrubberHeight)
 
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
-import Html.Events
+import Html.Events exposing (on, onMouseDown, onMouseUp, onMouseOver, onMouseLeave)
+import Html.Lazy exposing (lazy2)
 import Json.Decode as Decode
 import Time exposing (Time)
+import Debug exposing (log)
 
 --
 
 import Lyrics.Model exposing (LyricBook, LyricPage, LyricLine, Lyric)
-import Model exposing (Model)
+import Scrubber.Model exposing (Model)
 import Update exposing (..)
+import Helpers exposing (traceDecoder)
 
 
 scrubberHeight : Int
 scrubberHeight =
-    60
+    80
 
 
 toCssPercent : Float -> String
 toCssPercent proportion =
-    (toString (proportion * 100)) ++ "%"
+    (toString <| proportion * 100) ++ "%"
 
 
 proportionInSeconds : Time -> Float -> Float
@@ -41,19 +44,20 @@ decodeClickX =
 
 mouseScrub : Bool -> Time -> Decode.Decoder Msg
 mouseScrub dragging duration =
-    case dragging of
-        True ->
-            Decode.map
-                (((*) duration)
-                    >> ((SyncPlayhead duration) >> AtTime)) (decodeClickX)
+    let msg =
+        case dragging of
+            True ->
+                DragScrubber
 
-        False ->
-            Decode.succeed (AtTime NoOp)
+            False ->
+                MoveScrubberCursor
+    in
+        Decode.map (msg >> AtTime) decodeClickX
 
 
 mouseSeek : Time -> Decode.Decoder Msg
 mouseSeek duration =
-    Decode.map ((proportionInSeconds duration) >> SetPlayhead) (decodeClickX)
+    Decode.map ((proportionInSeconds duration) >> SetPlayhead) decodeClickX
 
 
 timeAsPercent : Time -> Time -> Float
@@ -61,22 +65,27 @@ timeAsPercent duration position =
     (position / duration) * 100
 
 
-lyricMark : Time -> Int -> Int -> Lyric -> Html msg
+lyricMark : Time -> Int -> Int -> Lyric -> Html Msg
 lyricMark duration tokenCount index lyric =
-    let vspace =
-        (scrubberHeight - 8) // tokenCount
+    let
+        vspace =
+            (scrubberHeight - 8) // tokenCount
+        markHeight =
+            min 4 <| vspace - 1
     in
         Html.div 
             [ HtmlAttr.style
                 [ ( "position", "absolute" )
                 , ( "left", (toString <| timeAsPercent duration lyric.time) ++ "%" )
-                , ( "top", (toString <| (index * vspace) + 4) ++ "px" )
+                , ( "top", (toString <| (index * (markHeight + 1)) + 4) ++ "px" )
                 , ( "width", "5px" )
-                , ( "height", (toString <| vspace - 2) ++ "px" )
+                , ( "height", (toString <| markHeight) ++ "px" )
                 , ( "display", "block" )
                 , ( "overflow", "auto" )
                 , ( "background-color", "#a00" )
                 ]
+            , HtmlAttr.title lyric.text
+            , onMouseUp (SetPlayhead <| lyric.time / Time.second)
             ]
             [ ]
 
@@ -106,13 +115,38 @@ pageMarks duration page =
     ]
 
 
-eventMarks : Time -> LyricBook -> List (Html Msg)
+eventMarks : Time -> LyricBook -> Html Msg
 eventMarks duration book =
-    List.concatMap (pageMarks duration) book
+    Html.div
+        [ HtmlAttr.id "marks" ]
+        <| List.concatMap (pageMarks duration) book
 
 
-view : Model -> Html Msg
-view model =
+cursorMark : Maybe Float -> Html Msg
+cursorMark position =
+    case position of
+        Just proportion ->
+            Html.div 
+                [ HtmlAttr.style
+                    [ ( "position", "absolute" )
+                    , ( "left", toCssPercent proportion )
+                    , ( "top", "0" )
+                    , ( "width", "1px" )
+                    , ( "height", "100%" )
+                    , ( "display", "block" )
+                    , ( "overflow", "auto" )
+                    , ( "background-color", "#0a0" )
+                    , ( "pointer-events", "none" )
+                    ]
+                ]
+                [ ]
+        
+        Nothing ->
+            Html.div [] []
+
+
+view : Model -> LyricBook -> Html Msg
+view model lyrics =
     Html.div
         [ HtmlAttr.style
             [ ( "id", "scrubber" )
@@ -134,9 +168,12 @@ view model =
                 , ( "width", "100%" )
                 , ( "height", "100%" )
                 ]
-            , Html.Events.onMouseDown (ScrubberDrag True)
-            , Html.Events.on "mousemove" (mouseScrub model.dragging model.duration)
-            , Html.Events.on "mouseup" (mouseSeek model.duration)
+            , on "mousedown" (mouseScrub True model.duration)
+            , on "mousemove" (mouseScrub model.dragging model.duration)
+            , on "mouseup" (mouseSeek model.duration)
+            , onMouseLeave (AtTime LeaveScrubber)
             ]
-            (eventMarks model.duration model.lyrics)
+            [ lazy2 eventMarks model.duration lyrics
+            , cursorMark model.cursorX
+            ]
         ]

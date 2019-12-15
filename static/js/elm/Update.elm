@@ -2,14 +2,16 @@ module Update exposing (..)
 
 import Task
 import Time exposing (Time)
+import Debug exposing (log)
 
 --
 
 import Lyrics.Model exposing (LyricBook, LyricPage)
 import Lyrics.Style exposing (svgScratchId, lyricBaseFontName)
-import Model exposing (Model, SizedLyricBook, SizedLyricPage)
+import Model exposing (Model, SizedLyricBook, SizedLyricPage, PlayState(..))
 import Helpers exposing (lyricBefore)
-import Ports exposing (getSizes, togglePlayback, seekTo)
+import Ports exposing (jsGetSizes, jsSetPlayback, jsSeekTo)
+import Scrubber.Update as Scrubber
 
 
 type Msg
@@ -17,13 +19,16 @@ type Msg
     | WithTime ModelMsg Time
     | TogglePlayback
     | SetPlayhead Float
-    | ScrubberDrag Bool
 
 
 type ModelMsg
     = SetPageSizes (Maybe SizedLyricPage)
-    | SetPlayState (Maybe Bool)
-    | SyncPlayhead Time Time
+    | SetDuration Time
+    | SetPlayState PlayState
+    | SyncPlayhead Time
+    | MoveScrubberCursor Float
+    | DragScrubber Float
+    | LeaveScrubber
     | Animate (Maybe Time)
     | NoOp
 
@@ -35,8 +40,8 @@ animateTime model delta override =
             newTime
 
         Nothing ->
-            model.playhead
-                + (if (model.playing == Just True) then
+            model.scrubber.playhead
+                + (if (model.playing == Playing) then
                     delta
                     else
                     0
@@ -88,7 +93,7 @@ getNewPage prevPage nextPage =
             Cmd.none
 
         ( Nothing, Just newPage ) ->
-            getSizes
+            jsGetSizes
                 { lyrics = newPage
                 , scratchId = svgScratchId
                 , fontName = lyricBaseFontName
@@ -98,7 +103,7 @@ getNewPage prevPage nextPage =
             if (pagesMatch oldPage newPage) then
                 Cmd.none
             else
-                getSizes
+                jsGetSizes
                     { lyrics = newPage
                     , scratchId = svgScratchId
                     , fontName = lyricBaseFontName
@@ -118,9 +123,14 @@ updateModel msg delta model =
                         | page = Just sizedLyricPage
                     } ! [ Cmd.none ]
 
+        SetDuration time ->
+            { model
+                | scrubber = Scrubber.setDuration time model.scrubber
+            } ! [ Cmd.none ]
+
         SetPlayState playing ->
             { model
-                | playing = playing
+                | playing = (log "SetPlayState" playing)
             } ! [ Cmd.none ]
 
         Animate timeOverride ->
@@ -131,17 +141,44 @@ updateModel msg delta model =
                     findPage newTime model.lyrics
             in
                 { model
-                    | playhead = newTime
+                    | scrubber = Scrubber.setPlayhead newTime model.scrubber
                 } ! [ getNewPage model.page newPage ]
 
-        SyncPlayhead duration playheadTime ->
+        SyncPlayhead playheadTime ->
             { model
-                | duration = duration
-                , playhead = playheadTime
+                | scrubber = Scrubber.setPlayhead playheadTime model.scrubber
+            } ! [ Cmd.none ]
+
+        MoveScrubberCursor cursorXProportion ->
+            { model 
+                | scrubber = Scrubber.moveCursor (log "scrubCursor" cursorXProportion) model.scrubber
+            } ! [ Cmd.none ]
+
+        DragScrubber playheadProportion ->
+            { model
+                | scrubber = Scrubber.dragPlayhead playheadProportion model.scrubber
+            } ! [ if model.playing == Playing then (jsSetPlayback False) else Cmd.none ]
+
+        LeaveScrubber ->
+            { model
+                | scrubber = (log "LeaveScrubber" Scrubber.mouseLeave) model.scrubber
             } ! [ Cmd.none ]
 
         NoOp ->
             model ! [ Cmd.none ]
+
+
+togglePlaybackIfPossible : PlayState -> Cmd Msg
+togglePlaybackIfPossible state =
+    case state of
+        Playing ->
+            jsSetPlayback False
+
+        Paused ->
+            jsSetPlayback True
+
+        _ ->
+            Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -158,13 +195,8 @@ update msg model =
                 (Tuple.first result) ! [ Tuple.second result ]
 
         TogglePlayback ->
-            model ! [ togglePlayback
-                        <| Maybe.withDefault False
-                        <| Maybe.map not model.playing ]
+            model ! [ togglePlaybackIfPossible model.playing ]
 
         SetPlayhead pos ->
-            { model | dragging = False }
-            ! [ seekTo pos ]
-
-        ScrubberDrag dragging ->
-            { model | dragging = dragging } ! [ togglePlayback False ]
+            { model | scrubber = Scrubber.stopDragging model.scrubber }
+            ! [ jsSeekTo (log "seekTo" pos) ]

@@ -12,9 +12,6 @@
 
     <body>
     </body>
-    <div id="musicvideo"></div>
-
-    <script type="text/javascript" src="static/js/audio/audio5.min.js"></script>
     <script type="text/javascript" src="static/js/text/opentype.js"></script>
 
     <script type="text/javascript" src="static/js/elm.js"></script>
@@ -25,7 +22,7 @@
     app.allFonts = {};
 
     // { lyrics: LyricPage, scratchId: String, fontName: String} -> SizedLyricPage
-    app.ports.getSizes.subscribe(function (args) {
+    app.ports.jsGetSizes.subscribe(function (args) {
         var sizedLyricPage = getSizedLyricPage(args.lyrics, args.scratchId, app.allFonts[args.fontName]);
         app.ports.gotSizes.send(sizedLyricPage);
     });
@@ -50,7 +47,7 @@
     }
 
     // List { name: String, path: String } -> Bool
-    app.ports.loadFonts.subscribe(function(fonts) {
+    app.ports.jsLoadFonts.subscribe(function(fonts) {
         var fontsLoaded = 0;
         var loaderSvgs = {};
         for (var i = 0; i < fonts.length; i++) {
@@ -72,64 +69,26 @@
         };
     });
 
-    function initAudio() {
-        var audio5js = new Audio5js({
-            format_time: false,
-            ready: function () {
+    app.ports.jsSetPlayback.subscribe(function (play) {
+        console.log('toggle');
+        var audio = document.getElementById('audio-player');
+        var playing = false;
+        if (play) {
+            audio.play();
+            playing = true;
+        }
+        else {
+            audio.pause();
+            playing = false;
+        };
+        app.ports.playState.send(playing);
+    });
 
-                this.load('/static/audio/song.mp3');
-
-                //this points to the Audio5js instance
-
-                // This doesn't work; it sends a duration of 0
-                /* this.one('canplay', function () {*/
-                /* app.ports.canPlay.send(this.duration);*/
-                /* }, this);*/
-
-                this.on('play', function () {
-                    console.log('play');
-                    app.ports.playState.send(true);
-                }, this);
-                this.on('pause', function () {
-                    console.log('pause');
-                    app.ports.playState.send(false);
-                }, this);
-                this.on('ended', function () {
-                    console.log('ended');
-                    app.ports.playState.send(false);
-                }, this);
-                this.on('loadedmetadata', function() {
-                    console.log('loadedmetadata');
-                    console.log(this);
-                }, this);
-                this.on('timeupdate', function() {
-                    if (this.duration && this.position) {
-                        console.log(this.position);
-                        app.ports.playhead.send([this.duration, this.position]);
-                    }
-                }, this);
-                this.on('seeked', function() {
-                    console.log(this.position);
-                    app.ports.playhead.send([this.duration, this.position]);
-                }, this);
-            }
-        });
-
-        app.ports.togglePlayback.subscribe(function (play) {
-            console.log('toggle');
-            if (play) {
-                audio5js.play();
-            }
-            else {
-                audio5js.pause();
-            };
-        });
-
-        app.ports.seekTo.subscribe(function (position) {
-            console.log(position);
-            audio5js.seek(position);
-        });
-    }
-    initAudio();
+    app.ports.jsSeekTo.subscribe(function (position) {
+        console.log(position);
+        var audio = document.getElementById('audio-player');
+        audio.currentTime = position;
+        app.ports.playhead.send(audio.currentTime);
+    });
     </script>
 </html>
