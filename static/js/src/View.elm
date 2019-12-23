@@ -1,25 +1,21 @@
 module View exposing (view)
 
-import Html exposing (Html)
-import Html.Attributes as HtmlAttr
-import Html.Events
-import Svg exposing (Svg)
-import Svg.Attributes as SvgAttr
-import Time exposing (Time)
-
---
-
-import List.Extra exposing (scanl1)
-
 --
 
 import AudioPlayer
-import Lyrics.Model exposing (Lyric, LyricLine)
-import Lyrics.Style exposing (lyricBaseFontTTF, lyricBaseFontName, svgScratchId)
-import Model exposing (Model, SizedLyricPage, WithDims, Height)
+import Helpers exposing (Milliseconds, seconds)
+import Html exposing (Html)
+import Html.Attributes as HtmlAttr
+import Html.Events
+import List.Extra exposing (scanl1)
+import Lyrics.Model exposing (Lyric, LyricLine, lyricBefore)
+import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
+import Model exposing (Height, Model, SizedLyricPage, WithDims)
 import Scrubber.View
+import String
+import Svg exposing (Svg)
+import Svg.Attributes as SvgAttr
 import Update exposing (..)
-import Helpers exposing (lyricBefore)
 
 
 type alias VerticalLine =
@@ -30,7 +26,7 @@ type alias VerticalLine =
     }
 
 
-lineBefore : Time -> WithDims LyricLine -> Bool
+lineBefore : Milliseconds -> WithDims LyricLine -> Bool
 lineBefore t line =
     List.head line.content
         |> lyricBefore t
@@ -38,7 +34,7 @@ lineBefore t line =
 
 fontScale : Float -> Float -> Float
 fontScale extent controlWidth =
-    (extent / controlWidth)
+    extent / controlWidth
 
 
 controlFontSize : Float
@@ -48,27 +44,27 @@ controlFontSize =
 
 fontSizeToFill : Float -> Float -> Float
 fontSizeToFill extent controlWidth =
-    (fontScale extent controlWidth) * controlFontSize
+    fontScale extent controlWidth * controlFontSize
 
 
-lineWithHeight : Time -> WithDims LyricLine -> VerticalLine
+lineWithHeight : Milliseconds -> WithDims LyricLine -> VerticalLine
 lineWithHeight time line =
     let
         factor =
             fontScale 1024.0 line.width
     in
-        { content =
-            List.filter (Just >> lyricBefore time) line.content
-                |> List.map .text
-                |> String.join ""
-                |> Svg.text
-        , fontSize = fontSizeToFill 1024.0 line.width
-        , height =
-            { min = factor * line.y.min
-            , max = factor * line.y.max
-            }
-        , y = factor * line.y.max
+    { content =
+        List.filter (Just >> lyricBefore time) line.content
+            |> List.map .text
+            |> String.join ""
+            |> Svg.text
+    , fontSize = fontSizeToFill 1024.0 line.width
+    , height =
+        { min = factor * line.y.min
+        , max = factor * line.y.max
         }
+    , y = factor * line.y.max
+    }
 
 
 accumulateHeights : VerticalLine -> VerticalLine -> VerticalLine
@@ -78,27 +74,27 @@ accumulateHeights this prev =
     }
 
 
-stringAttr : (String -> Svg.Attribute msg) -> a -> Svg.Attribute msg
+stringAttr : (String -> Svg.Attribute msg) -> Float -> Svg.Attribute msg
 stringAttr attr value =
-    attr <| toString value
+    attr <| String.fromFloat value
 
 
 lineToSvg : VerticalLine -> Svg Msg
 lineToSvg line =
     Svg.g []
         [ Svg.text_
-            [ stringAttr SvgAttr.x 0
+            [ stringAttr SvgAttr.x 0.0
             , stringAttr SvgAttr.y line.y
-            , SvgAttr.fontSize
-                <| toString line.fontSize
-                ++ "px"
+            , SvgAttr.fontSize <|
+                String.fromFloat line.fontSize
+                    ++ "px"
             ]
             [ line.content
             ]
         ]
 
 
-computePage : Time -> SizedLyricPage -> List (Svg Msg)
+computePage : Milliseconds -> SizedLyricPage -> List (Svg Msg)
 computePage time page =
     List.filter (lineBefore time) page.content
         |> List.map (lineWithHeight time)
@@ -106,7 +102,7 @@ computePage time page =
         |> List.map lineToSvg
 
 
-viewPage : Time -> Maybe SizedLyricPage -> Html Msg
+viewPage : Milliseconds -> Maybe SizedLyricPage -> Html Msg
 viewPage time mpage =
     case mpage of
         Nothing ->
@@ -118,19 +114,18 @@ viewPage time mpage =
                 , SvgAttr.width "100%"
                 , SvgAttr.height "100%"
                 ]
-                <| computePage time page
+            <|
+                computePage time page
 
 
 footer : Model -> Html Msg
 footer model =
     Html.footer
-        [ HtmlAttr.style
-            [ ( "position", "fixed" )
-            , ( "bottom", "0" )
-            , ( "left", "0" )
-            , ( "width", "100%" )
-            , ( "height", (toString Scrubber.View.scrubberHeight) ++ "px" )
-            ]
+        [ HtmlAttr.style "position" "fixed"
+        , HtmlAttr.style "bottom" "0"
+        , HtmlAttr.style "left" "0"
+        , HtmlAttr.style "width" "100%"
+        , HtmlAttr.style "height" (String.fromInt Scrubber.View.scrubberHeight ++ "px")
         ]
         [ Scrubber.View.view model.scrubber model.lyrics
         ]
@@ -139,12 +134,10 @@ footer model =
 scratch : Model -> Html Msg
 scratch model =
     Html.div
-        [ HtmlAttr.style
-            [ ( "position", "absolute" )
-            , ( "left", "-1024px" )
-            , ( "width", "1024px" )
-            , ( "height", "768px" )
-            ]
+        [ HtmlAttr.style "position" "absolute"
+        , HtmlAttr.style "left" "-1024px"
+        , HtmlAttr.style "width" "1024px"
+        , HtmlAttr.style "height" "768px"
         ]
         [ Svg.svg
             [ SvgAttr.id svgScratchId
@@ -156,27 +149,23 @@ scratch model =
             ]
             []
         ]
-        
+
 
 view : Model -> Html Msg
 view model =
     Html.div
-        [ HtmlAttr.style
-            [ ( "width", "100%" )
-            , ( "height", "100%" )
-            ]
+        [ HtmlAttr.style "width" "100%"
+        , HtmlAttr.style "height" "100%"
         , Html.Events.onClick TogglePlayback
         ]
         [ scratch model
         , AudioPlayer.view model
         , Html.div
             [ HtmlAttr.width 1024
-            , HtmlAttr.style
-                [ ( "margin", "auto auto" )
-                , ( "width", "1024px" )
-                ]
+            , HtmlAttr.style "margin" "auto auto"
+            , HtmlAttr.style "width" "1024px"
             ]
-            [ viewPage model.scrubber.playhead model.page
+            [ viewPage (seconds model.scrubber.playhead) model.page
             ]
         , footer model
         ]

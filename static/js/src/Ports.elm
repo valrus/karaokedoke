@@ -1,7 +1,8 @@
 port module Ports exposing (..)
 
 import Lyrics.Model exposing (LyricPage)
-import Model exposing (SizedLyricPage, PlayState)
+import Model exposing (PlayState, SizedLyricPage)
+
 
 
 -- Incoming
@@ -17,6 +18,7 @@ port gotSizes : (Maybe SizedLyricPage -> msg) -> Sub msg
 
 
 port playhead : (Float -> msg) -> Sub msg
+
 
 
 -- Outgoing

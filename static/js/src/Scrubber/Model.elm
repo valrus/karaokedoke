@@ -1,11 +1,11 @@
 module Scrubber.Model exposing (Model, init)
 
-import Time exposing (Time)
+import Helpers exposing (Milliseconds, Seconds)
 
 
 type alias Model =
-    { duration : Time
-    , playhead : Time
+    { duration : Milliseconds
+    , playhead : Seconds
     , cursorX : Maybe Float
     , dragging : Bool
     , hovering : Bool

@@ -11,7 +11,10 @@ lyricBaseFontName =
     "LeagueGothic"
 
 
+
 -- ID of an invisible SVG element for determining text widths
+
+
 svgScratchId : String
 svgScratchId =
     "scratch"

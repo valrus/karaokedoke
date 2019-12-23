@@ -1,10 +1,8 @@
 module Model exposing (..)
 
-import Time exposing (Time)
-
 --
 
-import Lyrics.Model exposing (LyricLine, LyricBook)
+import Lyrics.Model exposing (LyricBook, LyricLine)
 import Scrubber.Model
 
 
@@ -67,7 +65,7 @@ type PlayState
 
 
 type alias Model =
-    { page : Maybe (SizedLyricPage)
+    { page : Maybe SizedLyricPage
     , playing : PlayState
     , lyrics : LyricBook
     , scrubber : Scrubber.Model.Model

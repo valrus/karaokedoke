@@ -1,28 +1,27 @@
 module Scrubber.Update exposing (..)
 
-import Time exposing (Time)
-import Debug exposing (log)
-
 --
 
+import Debug exposing (log)
 import Scrubber.Model exposing (Model)
+import Helpers exposing (Milliseconds, Seconds, inSeconds)
 
 
-setDuration : Time -> Model -> Model
+setDuration : Milliseconds -> Model -> Model
 setDuration duration model =
-    { model 
+    { model
         | duration = duration
     }
 
 
-setPlayhead : Time -> Model -> Model
+setPlayhead : Milliseconds -> Model -> Model
 setPlayhead playhead model =
     { model
-        | playhead = playhead
+        | playhead = (inSeconds playhead)
     }
 
 
-moveCursor : Float -> Model -> Model 
+moveCursor : Float -> Model -> Model
 moveCursor proportion model =
     { model
         | cursorX = Just proportion
@@ -32,9 +31,10 @@ moveCursor proportion model =
 dragPlayhead : Float -> Model -> Model
 dragPlayhead proportion model =
     { model
-        | playhead = (model.duration * proportion)
+        | playhead = model.duration * proportion
         , dragging = True
-    } |> (moveCursor proportion)
+    }
+        |> moveCursor proportion
 
 
 stopDragging : Model -> Model
