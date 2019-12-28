@@ -3,85 +3,115 @@ module MusicVideo exposing (..)
 --
 
 import Browser exposing (application)
-import Browser.Events exposing (onAnimationFrameDelta)
-import Helpers exposing (Milliseconds)
 import Html
-import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
-import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
-import Model exposing (..)
 import Ports
-import Scrubber.Model
+import Route
 import Svg exposing (Svg)
 import Time exposing (Posix)
-import Update exposing (..)
-import View exposing (view)
+
+--
+
+import Dashboard.Model as DashboardModel
+import Dashboard.Update as DashboardUpdate
+import Dashboard.View as DashboardView
+import Editor.Model as EditorModel
+import Editor.Update as EditorUpdate
+import Editor.View as EditorView
+import Helpers exposing (Milliseconds)
+import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
+import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
+import Player.Model as PlayerModel
+import Player.Update as PlayerUpdate
+import Player.View as PlayerView
+
 
 
 type alias Flags
-    = {}
+    = ()
 
 
-lyrics : LyricBook
-lyrics =
-    []
+type Page
+    = NotFoundPage
+    | DashboardPage DashboardModel.Model
+    | EditorPage EditorModel.Model
+    | PlayerPage PlayerModel.Model
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
-    ( { page = Nothing
-      , playing = Loading
-      , lyrics = lyrics
-      , scrubber = Scrubber.Model.init
+
+type Msg
+    = DashboardPageMsg DashboardUpdate.Msg
+    | EditorPageMsg EditorUpdate.Msg
+    | PlayerPageMsg PlayerUpdate.Msg
+    | LinkClicked UrlRequest
+
+
+type alias Model =
+    { route : Route
+    , page : Page
+    , navKey : Nav.Key
+    }
+
+
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url key =
+    initCurrentPage
+    ( { route = Route.parseUrl
+      , page = NotFoundPage
+      , navKey = key
       }
     , Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
     )
 
 
-lyricToSvg : Lyric -> Svg Msg
-lyricToSvg lyric =
-    Svg.g []
-        [ Svg.text_ []
-            [ Svg.text lyric.text ]
-        ]
+view : Model -> Html Msg
+view model =
+    case model.page of
+        NotFoundPage ->
+            Html.div []
+
+        DashboardPage dashboardModel ->
+            DashboardView.view dashboardModel
+
+        EditorPage editorModel ->
+            EditorView.view editorModel
+
+        PlayerPage playerModel ->
+            PlayerView.view playerModel
 
 
-animateMsg : Scrubber.Model.Model -> (Float -> Msg)
-animateMsg scrubber =
-    case scrubber.dragging of
-        True ->
-            WithTime <| Animate <| Just scrubber.playhead
+initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+initCurrentPage ( model, existingCmds ) =
+    let
+        ( currentPage, mappedPageCmds ) =
+            case model.route of
+                Route.NotFound ->
+                    ( NotFoundPage, Cmd.none )
 
-        False ->
-            WithTime <| Animate Nothing
-
-
-playStateOnLoad : Bool -> PlayState
-playStateOnLoad success =
-    case success of
-        True ->
-            Loading
-
-        False ->
-            Error
-
-
-toPlayState : Bool -> PlayState
-toPlayState playing =
-    case playing of
-        True ->
-            Playing
-
-        False ->
-            Paused
+                Route.Player ->
+                    let
+                        ( pageModel, pageCmds ) =
+                            Player.init
+                    in
+                    ( PlayerPage pageModel, Cmd.map PlayerPageMsg pageCmds )
+    in
+    ( { model | page = currentPage }
+    , Cmd.batch [ existingCmds, mappedPageCmds ]
+    )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ onAnimationFrameDelta <| animateMsg model.scrubber
-        , Ports.loadedFonts (Immediately << SetPlayState << playStateOnLoad)
-        , Ports.playState (Immediately << SetPlayState << toPlayState)
-        , Ports.gotSizes (Immediately << SetPageSizes)
-        ]
+    case model.page of
+        NotFoundPage ->
+            Sub.none
+
+        DashboardPage dashboardModel ->
+            Sub.none
+
+        EditorPage editorModel ->
+            Sub.none
+
+        PlayerPage playerModel ->
+            PlayerUpdate.subscriptions playerModel
 
 
 main =

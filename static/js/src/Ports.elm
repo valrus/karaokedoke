@@ -1,8 +1,7 @@
 port module Ports exposing (..)
 
 import Lyrics.Model exposing (LyricPage)
-import Model exposing (PlayState, SizedLyricPage)
-
+import Player.Model exposing (PlayState, SizedLyricPage)
 
 
 -- Incoming

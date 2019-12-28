@@ -1,16 +1,18 @@
-module Update exposing (..)
+module Player.Update exposing (..)
+
+import Browser.Events exposing (onAnimationFrameDelta)
+import Debug exposing (log)
+import Ports exposing (jsGetSizes, jsSeekTo, jsSetPlayback)
+import Task
+import Time
 
 --
 
-import Debug exposing (log)
 import Helpers exposing (Milliseconds, inSeconds, seconds)
 import Lyrics.Model exposing (LyricBook, LyricPage, lyricBefore)
 import Lyrics.Style exposing (lyricBaseFontName, svgScratchId)
-import Model exposing (Model, PlayState(..), SizedLyricBook, SizedLyricPage)
-import Ports exposing (jsGetSizes, jsSeekTo, jsSetPlayback)
+import Player.Model exposing (Model, PlayState(..), SizedLyricBook, SizedLyricPage)
 import Scrubber.Update as Scrubber
-import Task
-import Time
 
 
 type Msg
@@ -18,8 +20,6 @@ type Msg
     | WithTime ModelMsg Milliseconds
     | TogglePlayback
     | SetPlayhead Milliseconds
-    | ChangeUrl Url
-    | ClickLink UrlRequest
 
 
 type ModelMsg
@@ -237,3 +237,46 @@ update msg model =
             ( { model | scrubber = Scrubber.stopDragging model.scrubber }
             , jsSeekTo (log "seekTo" (inSeconds pos))
             )
+
+
+-- Subscriptions and related functions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ onAnimationFrameDelta <| animateMsg model.scrubber
+        , Ports.loadedFonts (Immediately << SetPlayState << playStateOnLoad)
+        , Ports.playState (Immediately << SetPlayState << toPlayState)
+        , Ports.gotSizes (Immediately << SetPageSizes)
+        ]
+
+
+animateMsg : Scrubber.Model.Model -> (Float -> Msg)
+animateMsg scrubber =
+    case scrubber.dragging of
+        True ->
+            WithTime <| Animate <| Just scrubber.playhead
+
+        False ->
+            WithTime <| Animate Nothing
+
+
+playStateOnLoad : Bool -> PlayState
+playStateOnLoad success =
+    case success of
+        True ->
+            Loading
+
+        False ->
+            Error
+
+
+toPlayState : Bool -> PlayState
+toPlayState playing =
+    case playing of
+        True ->
+            Playing
+
+        False ->
+            Paused

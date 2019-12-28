@@ -1,4 +1,4 @@
-module View exposing (view)
+module Player.View exposing (view)
 
 --
 
@@ -10,12 +10,12 @@ import Html.Events
 import List.Extra exposing (scanl1)
 import Lyrics.Model exposing (Lyric, LyricLine, lyricBefore)
 import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
-import Model exposing (Height, Model, SizedLyricPage, WithDims)
+import Player.Model exposing (Height, Model, SizedLyricPage, WithDims)
 import Scrubber.View
 import String
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
-import Update exposing (..)
+import Player.Update exposing (..)
 
 
 type alias VerticalLine =
@@ -91,6 +91,14 @@ lineToSvg line =
             ]
             [ line.content
             ]
+        ]
+
+
+lyricToSvg : Lyric -> Svg Msg
+lyricToSvg lyric =
+    Svg.g []
+        [ Svg.text_ []
+            [ Svg.text lyric.text ]
         ]
 
 

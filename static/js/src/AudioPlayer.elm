@@ -7,8 +7,8 @@ import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events exposing (on, onMouseDown)
 import Json.Decode as Decode
-import Model exposing (Model, PlayState(..))
-import Update exposing (..)
+import Player.Model exposing (Model, PlayState(..))
+import Player.Update exposing (..)
 
 
 decodeTargetAttribute : String -> Decode.Decoder a -> Decode.Decoder a

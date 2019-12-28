@@ -1,9 +1,10 @@
-module Model exposing (..)
+module Player.Model exposing (..)
 
 --
 
 import Lyrics.Model exposing (LyricBook, LyricLine)
 import Scrubber.Model
+import Player.Update exposing (Msg)
 
 
 type alias Size =
