@@ -1,4 +1,4 @@
-module Player.Update exposing (..)
+module Player.State exposing (..)
 
 import Browser.Events exposing (onAnimationFrameDelta)
 import Debug exposing (log)
@@ -9,10 +9,34 @@ import Time
 --
 
 import Helpers exposing (Milliseconds, inSeconds, seconds)
-import Lyrics.Model exposing (LyricBook, LyricPage, lyricBefore)
+import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (lyricBaseFontName, svgScratchId)
-import Player.Model exposing (Model, PlayState(..), SizedLyricBook, SizedLyricPage)
-import Scrubber.Update as Scrubber
+import Scrubber.State as Scrubber
+
+
+type PlayState
+    = Loading
+    | Paused
+    | Playing
+    | Ended
+    | Error
+
+
+type alias Model =
+    { page : Maybe SizedLyricPage
+    , playing : PlayState
+    , lyrics : LyricBook
+    , scrubber : Scrubber.Model
+    }
+
+
+init : Model
+init =
+    { page = Nothing
+    , playing = Loading
+    , lyrics = []
+    , scrubber = Scrubber.init
+    }
 
 
 type Msg
@@ -252,7 +276,7 @@ subscriptions model =
         ]
 
 
-animateMsg : Scrubber.Model.Model -> (Float -> Msg)
+animateMsg : Scrubber.Model -> (Float -> Msg)
 animateMsg scrubber =
     case scrubber.dragging of
         True ->

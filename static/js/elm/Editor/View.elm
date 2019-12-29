@@ -4,8 +4,7 @@ import Html exposing (Html)
 
 --
 
-import Editor.Update as Update exposing (Msg)
-import Editor.Model exposing (Model)
+import Editor.State exposing (Model, Msg)
 
 
 view : Model -> Html Msg

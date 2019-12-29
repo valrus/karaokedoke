@@ -8,14 +8,13 @@ import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
 import List.Extra exposing (scanl1)
-import Lyrics.Model exposing (Lyric, LyricLine, lyricBefore)
+import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
-import Player.Model exposing (Height, Model, SizedLyricPage, WithDims)
+import Player.State exposing (..)
 import Scrubber.View
 import String
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
-import Player.Update exposing (..)
 
 
 type alias VerticalLine =

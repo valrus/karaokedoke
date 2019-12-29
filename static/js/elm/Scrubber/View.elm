@@ -10,9 +10,9 @@ import Html.Events exposing (on, onMouseDown, onMouseLeave, onMouseOver, onMouse
 import Html.Lazy exposing (lazy2)
 import Json.Decode as Decode
 import Lyrics.Model exposing (Lyric, LyricBook, LyricLine, LyricPage)
-import Scrubber.Model exposing (Model)
+import Player.State exposing (Msg(..), ModelMsg(..))
 import String
-import Update exposing (..)
+import Scrubber.State exposing (..)
 
 
 scrubberHeight : Int

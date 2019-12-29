@@ -1,29 +1,30 @@
+
 module MusicVideo exposing (..)
 
 --
 
-import Browser exposing (application)
-import Html
+import Browser exposing (UrlRequest, application)
+import Browser.Navigation as Nav
+import Html exposing (Html)
+import Http
 import Ports
-import Route
 import Svg exposing (Svg)
 import Time exposing (Posix)
+import Url exposing (Url)
+import Url.Builder
 
 --
 
-import Dashboard.Model as DashboardModel
-import Dashboard.Update as DashboardUpdate
+import Dashboard.State as DashboardState
 import Dashboard.View as DashboardView
-import Editor.Model as EditorModel
-import Editor.Update as EditorUpdate
+import Editor.State as EditorState
 import Editor.View as EditorView
 import Helpers exposing (Milliseconds)
 import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
-import Player.Model as PlayerModel
-import Player.Update as PlayerUpdate
+import Player.State as PlayerState
 import Player.View as PlayerView
-
+import Route exposing (Route(..))
 
 
 type alias Flags
@@ -32,16 +33,17 @@ type alias Flags
 
 type Page
     = NotFoundPage
-    | DashboardPage DashboardModel.Model
-    | EditorPage EditorModel.Model
-    | PlayerPage PlayerModel.Model
+    | DashboardPage DashboardState.Model
+    | EditorPage EditorState.Model
+    | PlayerPage PlayerState.Model
 
 
 type Msg
-    = DashboardPageMsg DashboardUpdate.Msg
-    | EditorPageMsg EditorUpdate.Msg
-    | PlayerPageMsg PlayerUpdate.Msg
-    | LinkClicked UrlRequest
+    = DashboardPageMsg DashboardState.Msg
+    | EditorPageMsg EditorState.Msg
+    | PlayerPageMsg PlayerState.Msg
+    | ClickLink UrlRequest
+    | ChangeUrl Url
 
 
 type alias Model =
@@ -58,9 +60,11 @@ init flags url key =
       , page = NotFoundPage
       , navKey = key
       }
-    , Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
+    , Cmd.none
     )
 
+
+-- Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
 
 view : Model -> Html Msg
 view model =
@@ -78,6 +82,34 @@ view model =
             PlayerView.view playerModel
 
 
+update : Model -> Msg -> Model
+update model msg =
+    case msg of
+        DashboardPageMsg dashboardMsg ->
+            let
+                (DashboardPage pageModel) = model.page
+            in
+                { model | page = DashboardPage <| DashboardState.update dashboardMsg pageModel }
+
+        EditorPageMsg editorMsg ->
+            let
+                (EditorPage pageModel) = model.page
+            in
+                { model | page = EditorPage <| EditorState.update editorMsg pageModel }
+
+        PlayerPageMsg playerMsg ->
+            let
+                (PlayerPage pageModel) = model.page
+            in
+                { model | page = PlayerPage <| PlayerState.update playerMsg pageModel }
+
+        ClickLink request ->
+            model -- TODO
+
+        ChangeUrl url ->
+            model -- TODO
+
+
 initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 initCurrentPage ( model, existingCmds ) =
     let
@@ -86,12 +118,26 @@ initCurrentPage ( model, existingCmds ) =
                 Route.NotFound ->
                     ( NotFoundPage, Cmd.none )
 
-                Route.Player ->
+                Route.Dashboard ->
                     let
                         ( pageModel, pageCmds ) =
-                            Player.init
+                            DashboardState.init
                     in
-                    ( PlayerPage pageModel, Cmd.map PlayerPageMsg pageCmds )
+                        ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds)
+
+                Route.Editor songName ->
+                    let
+                        ( pageModel, pageCmds ) =
+                            EditorState.init
+                    in
+                        ( EditorPage pageModel, Cmd.map EditorPageMsg pageCmds )
+
+                Route.Player songName ->
+                    let
+                        ( pageModel, pageCmds ) =
+                            PlayerState.init -- need to init this with the song
+                    in
+                        ( PlayerPage pageModel, Cmd.map PlayerPageMsg pageCmds )
     in
     ( { model | page = currentPage }
     , Cmd.batch [ existingCmds, mappedPageCmds ]
@@ -111,7 +157,7 @@ subscriptions model =
             Sub.none
 
         PlayerPage playerModel ->
-            PlayerUpdate.subscriptions playerModel
+            PlayerState.subscriptions playerModel
 
 
 main =

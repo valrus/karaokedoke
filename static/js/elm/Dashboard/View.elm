@@ -4,8 +4,7 @@ import Html exposing (Html)
 
 --
 
-import Dashboard.Update as Update exposing (Msg)
-import Dashboard.Model exposing (Model)
+import Dashboard.State exposing (Msg, Model)
 
 
 view : Model -> Html Msg
