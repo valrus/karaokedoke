@@ -1,4 +1,3 @@
-
 module MusicVideo exposing (..)
 
 --
@@ -7,7 +6,6 @@ import Browser exposing (UrlRequest, application)
 import Browser.Navigation as Nav
 import Html exposing (Html)
 import Http
-import Ports
 import Svg exposing (Svg)
 import Time exposing (Posix)
 import Url exposing (Url)
@@ -24,7 +22,10 @@ import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
 import Player.State as PlayerState
 import Player.View as PlayerView
+import Ports exposing (..)
+import RemoteData exposing (..)
 import Route exposing (Route(..))
+import Song exposing (..)
 
 
 type alias Flags
@@ -42,6 +43,7 @@ type Msg
     = DashboardPageMsg DashboardState.Msg
     | EditorPageMsg EditorState.Msg
     | PlayerPageMsg PlayerState.Msg
+    | GotSongList (WebData SongList)
     | ClickLink UrlRequest
     | ChangeUrl Url
 
@@ -50,64 +52,89 @@ type alias Model =
     { route : Route
     , page : Page
     , navKey : Nav.Key
+    , songList : WebData SongList
     }
 
 
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     initCurrentPage
-    ( { route = Route.parseUrl
+    ( { route = Route.parseUrl url
+      , songList = RemoteData.Loading
       , page = NotFoundPage
       , navKey = key
       }
-    , Cmd.none
+    , Http.get
+        { url = Url.Builder.relative ["list"] []
+        , expect = Http.expectJson (fromResult >> GotSongList) songListDecoder
+        }
     )
 
 
 -- Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    case model.page of
-        NotFoundPage ->
-            Html.div []
+    let
+        html =
+            case model.page of
+                NotFoundPage ->
+                    Html.div [] []
 
-        DashboardPage dashboardModel ->
-            DashboardView.view dashboardModel
+                DashboardPage dashboardModel ->
+                    DashboardView.view model.songList |> Html.map DashboardPageMsg
 
-        EditorPage editorModel ->
-            EditorView.view editorModel
+                EditorPage editorModel ->
+                    EditorView.view editorModel |> Html.map EditorPageMsg
 
-        PlayerPage playerModel ->
-            PlayerView.view playerModel
+                PlayerPage playerModel ->
+                    PlayerView.view playerModel |> Html.map PlayerPageMsg
+
+    in
+        { title = "Karaokedoke", body = [ html ] }
 
 
-update : Model -> Msg -> Model
-update model msg =
-    case msg of
-        DashboardPageMsg dashboardMsg ->
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case ( msg, model.page ) of
+        ( DashboardPageMsg dashboardMsg, DashboardPage pageModel ) ->
+            ( { model
+                | songList = RemoteData.map (DashboardState.updateSongList dashboardMsg) model.songList
+            }
+            , Cmd.none
+            )
+
+        ( EditorPageMsg editorMsg, EditorPage pageModel ) ->
+            ( { model | page = EditorPage <| EditorState.update pageModel editorMsg }
+            , Cmd.none
+            )
+
+        ( PlayerPageMsg playerMsg, PlayerPage pageModel ) ->
             let
-                (DashboardPage pageModel) = model.page
+                (newPage, pageCmd) = PlayerState.update pageModel playerMsg
             in
-                { model | page = DashboardPage <| DashboardState.update dashboardMsg pageModel }
+                ( { model | page = PlayerPage <| newPage }
+                , Cmd.map PlayerPageMsg pageCmd
+                )
 
-        EditorPageMsg editorMsg ->
-            let
-                (EditorPage pageModel) = model.page
-            in
-                { model | page = EditorPage <| EditorState.update editorMsg pageModel }
+        ( GotSongList songListResult, _ ) ->
+            ( { model | songList = songListResult }
+            , Cmd.none
+            )
 
-        PlayerPageMsg playerMsg ->
-            let
-                (PlayerPage pageModel) = model.page
-            in
-                { model | page = PlayerPage <| PlayerState.update playerMsg pageModel }
+        ( ClickLink request, _ ) ->
+            ( model, Cmd.none ) -- TODO
 
-        ClickLink request ->
-            model -- TODO
+        ( ChangeUrl url, _ ) ->
+            ( model, Cmd.none ) -- TODO
 
-        ChangeUrl url ->
-            model -- TODO
+        ( _, _ ) ->
+            ( model, Cmd.none )
+
+
+songWithId : SongId -> SongList -> Maybe Song
+songWithId songId songList =
+    List.filter (.id >> (==) songId) songList |> List.head
 
 
 initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -125,14 +152,21 @@ initCurrentPage ( model, existingCmds ) =
                     in
                         ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds)
 
-                Route.Editor songName ->
+                Route.Editor songId ->
                     let
-                        ( pageModel, pageCmds ) =
-                            EditorState.init
+                        songFromId = RemoteData.withDefault [] model.songList |> songWithId songId
                     in
-                        ( EditorPage pageModel, Cmd.map EditorPageMsg pageCmds )
+                        case songFromId of
+                            Just song ->
+                                let
+                                    ( pageModel, pageCmds ) = EditorState.init song
+                                in
+                                    ( EditorPage pageModel, Cmd.map EditorPageMsg pageCmds )
 
-                Route.Player songName ->
+                            Nothing ->
+                                ( NotFoundPage, Cmd.none )
+
+                Route.Player songId ->
                     let
                         ( pageModel, pageCmds ) =
                             PlayerState.init -- need to init this with the song
@@ -157,7 +191,7 @@ subscriptions model =
             Sub.none
 
         PlayerPage playerModel ->
-            PlayerState.subscriptions playerModel
+            Sub.map PlayerPageMsg <| PlayerState.subscriptions playerModel
 
 
 main =

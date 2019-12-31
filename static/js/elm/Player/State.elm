@@ -30,13 +30,15 @@ type alias Model =
     }
 
 
-init : Model
+init : ( Model, Cmd Msg )
 init =
-    { page = Nothing
-    , playing = Loading
-    , lyrics = []
-    , scrubber = Scrubber.init
-    }
+    ( { page = Nothing
+      , playing = Loading
+      , lyrics = []
+      , scrubber = Scrubber.init
+      }
+    , Cmd.none
+    )
 
 
 type Msg
@@ -233,8 +235,8 @@ togglePlaybackIfPossible state =
             Cmd.none
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Model -> Msg -> ( Model, Cmd Msg )
+update model msg =
     case msg of
         Immediately wrappedMsg ->
             ( model

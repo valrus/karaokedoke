@@ -7,7 +7,7 @@ import List exposing (filter)
 --
 
 import Lyrics.Model exposing (LyricBook)
-import Dashboard.State exposing (Song, SongId)
+import Song exposing (Song, SongId)
 
 
 type alias Model =
@@ -16,11 +16,13 @@ type alias Model =
     }
 
 
-init : Song -> Model
+init : Song -> ( Model, Cmd Msg )
 init song =
-    { song = song
-    , lyrics = [] -- note: init with the song lyrics
-    }
+    ( { song = song
+      , lyrics = [] -- note: init with the song lyrics
+      }
+    , Cmd.none
+    )
 
 
 type Msg
