@@ -82,7 +82,7 @@ view model =
                     Html.div [] []
 
                 DashboardPage dashboardModel ->
-                    DashboardView.view model.songList |> Html.map DashboardPageMsg
+                    DashboardView.view dashboardModel model.songList |> Html.map DashboardPageMsg
 
                 EditorPage editorModel ->
                     EditorView.view editorModel |> Html.map EditorPageMsg
@@ -98,11 +98,15 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.page ) of
         ( DashboardPageMsg dashboardMsg, DashboardPage pageModel ) ->
-            ( { model
-                | songList = RemoteData.map (DashboardState.updateSongList dashboardMsg) model.songList
-            }
-            , Cmd.none
-            )
+            let
+                (newPage, pageCmd) = DashboardState.update dashboardMsg pageModel
+            in
+                ( { model
+                    | songList = RemoteData.map (DashboardState.updateSongList dashboardMsg) model.songList
+                    , page = DashboardPage newPage
+                }
+                , Cmd.map DashboardPageMsg pageCmd
+                )
 
         ( EditorPageMsg editorMsg, EditorPage pageModel ) ->
             ( { model | page = EditorPage <| EditorState.update pageModel editorMsg }

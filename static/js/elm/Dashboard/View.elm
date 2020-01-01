@@ -1,15 +1,18 @@
 module Dashboard.View exposing (view)
 
+import File
 import Html exposing (Html)
+import Html.Events exposing (preventDefaultOn)
 import Element exposing (..)
 import Element.Border as Border
 import Element.Font as Font
+import Json.Decode as D
 import RemoteData exposing (WebData, RemoteData(..))
 import Url.Builder
 
 --
 
-import Dashboard.State exposing (Msg, Model)
+import Dashboard.State exposing (Msg(..), Model)
 import Helpers exposing (errorToString)
 import Song exposing (SongList, Song)
 
@@ -50,30 +53,35 @@ booleanIcon canPlay =
         text icon
 
 
-viewSongList : SongList -> Element Msg
-viewSongList songList =
-    Element.table
-        (List.append [ centerX, centerY, width shrink ] tableBorder)
-        { data = songList
-        , columns =
-              [ { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Song")
-                , width = fill |> maximum 300
-                , view = (linkToSong >> songTableCell)
+viewSongList : Model -> SongList -> Element Msg
+viewSongList model songList =
+    case model.dragging of
+        False ->
+            table
+                (List.append [ centerX, centerY, width shrink ] tableBorder)
+                { data = songList
+                , columns =
+                    [ { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Song")
+                        , width = fill |> maximum 300
+                        , view = (linkToSong >> songTableCell)
+                        }
+                    , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Artist")
+                        , width = fill |> maximum 300
+                        , view = (.artist >> text >> songTableCell)
+                        }
+                    , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Play")
+                        , width = fill |> maximum 50
+                        , view = (.prepared >> booleanIcon >> songTableCell)
+                        }
+                    ]
                 }
-              , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Artist")
-                , width = fill |> maximum 300
-                , view = (.artist >> text >> songTableCell)
-                }
-              , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Play")
-                , width = fill |> maximum 50
-                , view = (.prepared >> booleanIcon >> songTableCell)
-                }
-            ]
-        }
+
+        True ->
+            el [ centerX, centerY, width <| px 300, height <| px 300 ] <| text "Upload"
 
 
-viewSongListData : WebData SongList -> Element Msg
-viewSongListData songListData =
+viewSongListData : Model -> WebData SongList -> Element Msg
+viewSongListData model songListData =
     case songListData of
         NotAsked ->
             text "Initialising."
@@ -85,9 +93,32 @@ viewSongListData songListData =
             text ("Error: " ++ errorToString err)
 
         Success songList ->
-            viewSongList songList
+            viewSongList model songList
 
 
-view : WebData SongList -> Html Msg
-view songListData =
-    Element.layout [] <| viewSongListData songListData
+-- drag and drop, see https://github.com/elm/file/blob/master/examples/DragAndDrop.elm
+
+view : Model -> WebData SongList -> Html Msg
+view model songListData =
+    layout
+    [ hijackOn "dragenter" (D.succeed DragEnter)
+    , hijackOn "dragover" (D.succeed DragEnter)
+    , hijackOn "dragleave" (D.succeed DragLeave)
+    , hijackOn "drop" dropDecoder
+    ]
+    <| viewSongListData model songListData
+
+
+dropDecoder : D.Decoder Msg
+dropDecoder =
+  D.at ["dataTransfer","files"] (D.oneOrMore ProcessFiles File.decoder)
+
+
+hijackOn : String -> D.Decoder msg -> Attribute msg
+hijackOn event decoder =
+    htmlAttribute <| preventDefaultOn event (D.map hijack decoder)
+
+
+hijack : msg -> (msg, Bool)
+hijack msg =
+    (msg, True)
