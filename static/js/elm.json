@@ -15,7 +15,8 @@
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
             "elm-community/list-extra": "8.2.2",
-            "krisajenkins/remotedata": "6.0.1"
+            "krisajenkins/remotedata": "6.0.1",
+            "mdgriffith/elm-ui": "1.1.5"
         },
         "indirect": {
             "elm/bytes": "1.0.8",

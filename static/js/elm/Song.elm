@@ -13,10 +13,7 @@ type alias Song =
     { id : SongId
     , name : String
     , artist : String
-    , hasLyrics : Bool
-    , hasBackingTrack : Bool
-    , hasVocalTrack : Bool
-    , hasSyncMap : Bool
+    , prepared : Bool
     }
 
 
@@ -26,14 +23,11 @@ type alias SongList =
 
 songDecoder : Decode.Decoder Song
 songDecoder =
-    Decode.map7 Song
+    Decode.map4 Song
     (at ["id"] Decode.string)
     (at ["name"] Decode.string)
     (at ["artist"] Decode.string)
-    (at ["hasLyrics"] Decode.bool)
-    (at ["hasBackingTrack"] Decode.bool)
-    (at ["hasVocalTrack"] Decode.bool)
-    (at ["hasSyncMap"] Decode.bool)
+    (at ["prepared"] Decode.bool)
 
 
 songListDecoder : Decode.Decoder SongList
