@@ -4,6 +4,7 @@ module MusicVideo exposing (..)
 
 import Browser exposing (UrlRequest, application)
 import Browser.Navigation as Nav
+import Dict
 import Html exposing (Html)
 import Http
 import Svg exposing (Svg)
@@ -43,7 +44,7 @@ type Msg
     = DashboardPageMsg DashboardState.Msg
     | EditorPageMsg EditorState.Msg
     | PlayerPageMsg PlayerState.Msg
-    | GotSongList (WebData SongList)
+    | GotSongDict (WebData SongDict)
     | ClickLink UrlRequest
     | ChangeUrl Url
 
@@ -52,7 +53,7 @@ type alias Model =
     { route : Route
     , page : Page
     , navKey : Nav.Key
-    , songList : WebData SongList
+    , songDict : WebData SongDict
     }
 
 
@@ -60,13 +61,13 @@ init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     initCurrentPage
     ( { route = Route.parseUrl url
-      , songList = RemoteData.Loading
+      , songDict = RemoteData.Loading
       , page = NotFoundPage
       , navKey = key
       }
     , Http.get
-        { url = Url.Builder.relative ["list"] []
-        , expect = Http.expectJson (fromResult >> GotSongList) songListDecoder
+        { url = Url.Builder.relative ["songs"] []
+        , expect = Http.expectJson (fromResult >> GotSongDict) songDictDecoder
         }
     )
 
@@ -82,7 +83,7 @@ view model =
                     Html.div [] []
 
                 DashboardPage dashboardModel ->
-                    DashboardView.view dashboardModel model.songList |> Html.map DashboardPageMsg
+                    DashboardView.view dashboardModel model.songDict |> Html.map DashboardPageMsg
 
                 EditorPage editorModel ->
                     EditorView.view editorModel |> Html.map EditorPageMsg
@@ -102,7 +103,7 @@ update msg model =
                 (newPage, pageCmd) = DashboardState.update dashboardMsg pageModel
             in
                 ( { model
-                    | songList = RemoteData.map (DashboardState.updateSongList dashboardMsg) model.songList
+                    | songDict = RemoteData.map (DashboardState.updateSongDict dashboardMsg) model.songDict
                     , page = DashboardPage newPage
                 }
                 , Cmd.map DashboardPageMsg pageCmd
@@ -121,8 +122,8 @@ update msg model =
                 , Cmd.map PlayerPageMsg pageCmd
                 )
 
-        ( GotSongList songListResult, _ ) ->
-            ( { model | songList = songListResult }
+        ( GotSongDict songDictResult, _ ) ->
+            ( { model | songDict = songDictResult }
             , Cmd.none
             )
 
@@ -134,11 +135,6 @@ update msg model =
 
         ( _, _ ) ->
             ( model, Cmd.none )
-
-
-songWithId : SongId -> SongList -> Maybe Song
-songWithId songId songList =
-    List.filter (.id >> (==) songId) songList |> List.head
 
 
 initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -158,7 +154,7 @@ initCurrentPage ( model, existingCmds ) =
 
                 Route.Editor songId ->
                     let
-                        songFromId = RemoteData.withDefault [] model.songList |> songWithId songId
+                        songFromId = RemoteData.withDefault Dict.empty model.songDict |> Dict.get songId
                     in
                         case songFromId of
                             Just song ->

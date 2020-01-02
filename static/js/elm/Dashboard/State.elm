@@ -3,10 +3,16 @@ module Dashboard.State exposing (..)
 --
 
 import File exposing (File)
+import Dict
+import Http
+import Json.Decode as D
 import List exposing (filter)
+import RemoteData exposing (fromResult)
+import Url.Builder
 
 --
 
+import Helpers exposing (errorToString)
 import Song exposing (..)
 
 
@@ -15,7 +21,7 @@ type alias Model =
 
 
 type Msg
-    = AddSong Song
+    = AddUploadedSongs (Result Http.Error SongDict)
     | DeleteSong SongId
     | DragEnter
     | DragLeave
@@ -32,23 +38,33 @@ update msg model =
             ( { model | dragging = False }, Cmd.none )
 
         ProcessFiles file files ->
-            ( { model | dragging = False }, Cmd.none )
+            ( { model | dragging = False }
+            , Http.post
+                { url = Url.Builder.relative ["songs"] []
+                , body = Http.multipartBody <| List.map (Http.filePart "song[]") <| file :: files
+                , expect = Http.expectJson AddUploadedSongs <| songDictDecoder
+                }
+            )
 
         _ ->
             ( model, Cmd.none )
 
 
-updateSongList : Msg -> SongList -> SongList
-updateSongList msg songList =
+updateSongDict : Msg -> SongDict -> SongDict
+updateSongDict msg songDict =
     case msg of
-        AddSong song ->
-            song :: songList
+        AddUploadedSongs (Ok songUpload) ->
+            Dict.union songUpload songDict
+
+        AddUploadedSongs (Err songUploadError) ->
+            -- TODO replace ugly debugger code with actual error handling
+            Dict.singleton "err" { name = errorToString songUploadError, artist = "-", prepared = False }
 
         DeleteSong songId ->
-            filter (.id >> (/=) songId) songList
+            Dict.remove songId songDict
 
         _ ->
-            songList
+            songDict
 
 
 init : ( Model, Cmd Msg )

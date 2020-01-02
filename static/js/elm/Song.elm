@@ -1,5 +1,6 @@
 module Song exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as Decode exposing (..)
 
 -- import Lyrics.Model exposing (LyricBook)
@@ -10,26 +11,24 @@ type alias SongId
 
 
 type alias Song =
-    { id : SongId
-    , name : String
+    { name : String
     , artist : String
     , prepared : Bool
     }
 
 
-type alias SongList =
-    List Song
+type alias SongDict =
+    Dict SongId Song
 
 
 songDecoder : Decode.Decoder Song
 songDecoder =
-    Decode.map4 Song
-    (at ["id"] Decode.string)
+    Decode.map3 Song
     (at ["name"] Decode.string)
     (at ["artist"] Decode.string)
     (at ["prepared"] Decode.bool)
 
 
-songListDecoder : Decode.Decoder SongList
-songListDecoder =
-    at ["songs"] <| Decode.list songDecoder
+songDictDecoder : Decode.Decoder SongDict
+songDictDecoder =
+    at ["songs"] <| Decode.dict songDecoder
