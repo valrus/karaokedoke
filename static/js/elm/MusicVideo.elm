@@ -4,6 +4,7 @@ module MusicVideo exposing (..)
 
 import Browser exposing (UrlRequest, application)
 import Browser.Navigation as Nav
+import Debug exposing (log)
 import Dict
 import Html exposing (Html)
 import Http
@@ -44,7 +45,7 @@ type Msg
     = DashboardPageMsg DashboardState.Msg
     | EditorPageMsg EditorState.Msg
     | PlayerPageMsg PlayerState.Msg
-    | GotSongDict (WebData SongDict)
+    | GotSongUploads (WebData SongUpload)
     | ClickLink UrlRequest
     | ChangeUrl Url
 
@@ -67,7 +68,7 @@ init flags url key =
       }
     , Http.get
         { url = Url.Builder.relative ["songs"] []
-        , expect = Http.expectJson (fromResult >> GotSongDict) songDictDecoder
+        , expect = Http.expectJson (fromResult >> GotSongUploads) songUploadDecoder
         }
     )
 
@@ -122,10 +123,28 @@ update msg model =
                 , Cmd.map PlayerPageMsg pageCmd
                 )
 
-        ( GotSongDict songDictResult, _ ) ->
-            ( { model | songDict = songDictResult }
-            , Cmd.none
-            )
+        ( GotSongUploads songUploadsResult, _ ) ->
+            let
+                newSongDict =
+                    case songUploadsResult of
+                        Success songUploads ->
+                            RemoteData.succeed
+                                <| mergeSongUploads songUploads
+                                    <| RemoteData.withDefault Dict.empty model.songDict
+
+                        Failure err ->
+                            Failure err
+
+                        Loading ->
+                            Failure (Http.BadBody "got uploads, still loading?")
+
+                        otherResult ->
+                            model.songDict
+
+            in
+                ( { model | songDict = newSongDict }
+                , Cmd.none
+                )
 
         ( ClickLink request, _ ) ->
             ( model, Cmd.none ) -- TODO
@@ -159,7 +178,7 @@ initCurrentPage ( model, existingCmds ) =
                         case songFromId of
                             Just song ->
                                 let
-                                    ( pageModel, pageCmds ) = EditorState.init song
+                                    ( pageModel, pageCmds ) = EditorState.init { name = song.name, artist = song.artist }
                                 in
                                     ( EditorPage pageModel, Cmd.map EditorPageMsg pageCmds )
 

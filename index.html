@@ -17,6 +17,11 @@
             var app = Elm.MusicVideo.init();
             app.allFonts = {};
 
+         /* app.event_tracker = new EventSource('/progress'); */
+         /* app.event_tracker.onmessage = function (event) { */
+         /* app.ports.processingEvent.send(JSON.parse(event.data)); */
+         /* }; */
+
             // { lyrics: LyricPage, scratchId: String, fontName: String} -> SizedLyricPage
             app.ports.jsGetSizes.subscribe(function (args) {
                 var sizedLyricPage = getSizedLyricPage(args.lyrics, args.scratchId, app.allFonts[args.fontName]);

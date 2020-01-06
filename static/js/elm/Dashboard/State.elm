@@ -21,7 +21,7 @@ type alias Model =
 
 
 type Msg
-    = AddUploadedSongs (Result Http.Error SongDict)
+    = AddUploadedSongs (Result Http.Error SongUpload)
     | DeleteSong SongId
     | DragEnter
     | DragLeave
@@ -42,7 +42,7 @@ update msg model =
             , Http.post
                 { url = Url.Builder.relative ["songs"] []
                 , body = Http.multipartBody <| List.map (Http.filePart "song[]") <| file :: files
-                , expect = Http.expectJson AddUploadedSongs <| songDictDecoder
+                , expect = Http.expectJson AddUploadedSongs <| songUploadDecoder
                 }
             )
 
@@ -54,11 +54,11 @@ updateSongDict : Msg -> SongDict -> SongDict
 updateSongDict msg songDict =
     case msg of
         AddUploadedSongs (Ok songUpload) ->
-            Dict.union songUpload songDict
+            mergeSongUploads songUpload songDict
 
         AddUploadedSongs (Err songUploadError) ->
             -- TODO replace ugly debugger code with actual error handling
-            Dict.singleton "err" { name = errorToString songUploadError, artist = "-", prepared = False }
+            Dict.singleton "err" { name = errorToString songUploadError, artist = "-", processingState = Failed }
 
         DeleteSong songId ->
             Dict.remove songId songDict

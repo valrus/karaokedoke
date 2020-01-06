@@ -27,10 +27,6 @@ type alias Position =
     }
 
 
-type alias Positioned t =
-    { t | pos : Position }
-
-
 type alias Height =
     { min : Float
     , max : Float

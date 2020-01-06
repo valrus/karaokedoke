@@ -15,7 +15,7 @@ import Url.Builder
 
 import Dashboard.State exposing (Msg(..), Model)
 import Helpers exposing (errorToString)
-import Song exposing (SongDict, SongId, Song)
+import Song exposing (Processed, SongDict, SongId, Song, ProcessingState(..))
 
 
 tableBorder : List (Attribute Msg)
@@ -37,18 +37,27 @@ songTableCell content =
     el tableCellAttrs <| content
 
 
-linkToSong : ( SongId, Song ) -> Element Msg
+linkToSong : ( SongId, (Processed Song) ) -> Element Msg
 linkToSong ( songId, song ) =
     link [] { url = Url.Builder.relative [ "edit", songId ] [], label = text song.name }
 
 
-booleanIcon : Bool -> Element Msg
-booleanIcon canPlay =
+stateIcon : ProcessingState -> Element Msg
+stateIcon state =
     let
         icon =
-            case canPlay of
-                True -> ">"
-                False -> "-"
+            case state of
+                NotStarted ->
+                    "-"
+
+                InProgress _ ->
+                    "..."
+
+                Complete ->
+                    ">"
+
+                Failed ->
+                    "x"
 
     in
         text icon
@@ -72,13 +81,13 @@ viewSongDict model songDict =
                         }
                     , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Play")
                         , width = fill |> maximum 50
-                        , view = (Tuple.second >> .prepared >> booleanIcon >> songTableCell)
+                        , view = (Tuple.second >> .processingState >> stateIcon >> songTableCell)
                         }
                     ]
                 }
 
         True ->
-            el [ centerX, centerY, width <| px 300, height <| px 300 ] <| text "Upload"
+            el [ centerX, centerY, width shrink, height shrink, Font.size 300 ] <| text "⇪"
 
 
 viewSongDictData : Model -> WebData SongDict -> Element Msg

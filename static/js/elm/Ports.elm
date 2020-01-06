@@ -1,5 +1,6 @@
 port module Ports exposing (..)
 
+import Json.Decode
 import Lyrics.Model exposing (LyricPage, SizedLyricPage)
 
 
@@ -16,6 +17,9 @@ port gotSizes : (Maybe SizedLyricPage -> msg) -> Sub msg
 
 
 port playhead : (Float -> msg) -> Sub msg
+
+
+port processingEvent : (Json.Decode.Value -> msg) -> Sub msg
 
 
 
