@@ -1,5 +1,6 @@
 module Song exposing (..)
 
+import Debug exposing (log)
 import Dict exposing (Dict)
 import Json.Decode as Decode exposing (..)
 
@@ -73,28 +74,40 @@ songUploadDecoder =
 -- override the current processing state
 -- If the song is only in the dict, leave it
 
+
+toProcessed : Bool -> Maybe ProcessingState
+toProcessed prepared =
+    case prepared of
+        True ->
+            Just Complete
+
+        False ->
+            Nothing
+
+
 mergeUploadOnly : SongId -> (Prepared Song) -> SongDict -> SongDict
 mergeUploadOnly songId upload =
-    Dict.insert songId <|
-        { name = upload.name
-        , artist = upload.artist
-        , processingState = NotStarted
-        }
+    let
+        processingState =
+            toProcessed upload.prepared
+
+    in
+        Dict.insert songId <|
+            { name = upload.name
+            , artist = upload.artist
+            , processingState = Maybe.withDefault NotStarted processingState
+            }
 
 
 mergeConflict : SongId -> (Prepared Song) -> (Processed Song) -> SongDict -> SongDict
 mergeConflict songId upload existingSong =
     let
         processingState =
-            case upload.prepared of
-                True ->
-                    Complete
-
-                False ->
-                    existingSong.processingState
+            toProcessed upload.prepared
 
     in
-        Dict.insert songId <| { existingSong | processingState = processingState }
+        Dict.insert songId <|
+            { existingSong | processingState = Maybe.withDefault existingSong.processingState processingState }
 
 
 mergeSongUploads : SongUpload -> SongDict -> SongDict
