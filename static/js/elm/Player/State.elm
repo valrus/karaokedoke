@@ -2,7 +2,7 @@ module Player.State exposing (..)
 
 import Browser.Events exposing (onAnimationFrameDelta)
 import Debug exposing (log)
-import Ports exposing (jsGetSizes, jsSeekTo, jsSetPlayback)
+import Ports
 import Task
 import Time
 
@@ -121,7 +121,7 @@ getNewPage prevPage nextPage =
             Cmd.none
 
         ( Nothing, Just newPage ) ->
-            jsGetSizes
+            Ports.jsGetSizes
                 { lyrics = newPage
                 , scratchId = svgScratchId
                 , fontName = lyricBaseFontName
@@ -132,7 +132,7 @@ getNewPage prevPage nextPage =
                 Cmd.none
 
             else
-                jsGetSizes
+                Ports.jsGetSizes
                     { lyrics = newPage
                     , scratchId = svgScratchId
                     , fontName = lyricBaseFontName
@@ -203,7 +203,7 @@ updateModel msg delta model =
                 | scrubber = Scrubber.dragPlayhead playheadProportion model.scrubber
               }
             , if model.playing == Playing then
-                jsSetPlayback False
+                Ports.jsSetPlayback False
 
               else
                 Cmd.none
@@ -226,10 +226,10 @@ togglePlaybackIfPossible : PlayState -> Cmd Msg
 togglePlaybackIfPossible state =
     case state of
         Playing ->
-            jsSetPlayback False
+            Ports.jsSetPlayback False
 
         Paused ->
-            jsSetPlayback True
+            Ports.jsSetPlayback True
 
         _ ->
             Cmd.none
@@ -261,7 +261,7 @@ update model msg =
 
         SetPlayhead pos ->
             ( { model | scrubber = Scrubber.stopDragging model.scrubber }
-            , jsSeekTo (log "seekTo" (inSeconds pos))
+            , Ports.jsSeekTo (log "seekTo" (inSeconds pos))
             )
 
 

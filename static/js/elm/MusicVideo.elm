@@ -204,7 +204,7 @@ subscriptions model =
             Sub.none
 
         DashboardPage dashboardModel ->
-            Sub.none
+            Sub.map DashboardPageMsg <| DashboardState.subscriptions dashboardModel
 
         EditorPage editorModel ->
             Sub.none

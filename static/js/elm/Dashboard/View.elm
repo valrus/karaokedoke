@@ -56,7 +56,7 @@ stateIcon state =
                 Complete ->
                     ">"
 
-                Failed ->
+                Failed err ->
                     "x"
 
     in

@@ -15,7 +15,7 @@ type ProcessingState
     = NotStarted
     | InProgress String
     | Complete
-    | Failed
+    | Failed String
 
 
 type alias Song =
@@ -51,9 +51,9 @@ makePreparedSong name artist prepared =
 songDecoder : Decode.Decoder (Prepared Song)
 songDecoder =
     Decode.map3 makePreparedSong
-    (at ["name"] Decode.string)
-    (at ["artist"] Decode.string)
-    (at ["prepared"] Decode.bool)
+        (at ["name"] Decode.string)
+        (at ["artist"] Decode.string)
+        (at ["prepared"] Decode.bool)
 
 
 songUploadDecoder : Decode.Decoder SongUpload
@@ -61,11 +61,10 @@ songUploadDecoder =
     at ["songs"] <| Decode.dict songDecoder
 
 
--- merge :
--- (comparable -> a -> result -> result) ->
--- (comparable -> a -> b -> result -> result) ->
--- (comparable -> b -> result -> result) ->
--- Dict comparable a -> Dict comparable b -> result -> result
+updateProcessingState : ProcessingState -> Processed Song -> Processed Song
+updateProcessingState newState song =
+    { song | processingState = newState }
+
 
 -- If the song is only in the upload, use ProcessingState NotStarted
 -- If the song is in both and the SongUpload shows the song is prepared,
