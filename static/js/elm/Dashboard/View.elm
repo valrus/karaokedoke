@@ -32,9 +32,9 @@ tableCellAttrs =
     ]
 
 
-songTableCell : Element Msg -> Element Msg
-songTableCell content =
-    el tableCellAttrs <| content
+songTableCell : List (Attribute Msg) -> Element Msg -> Element Msg
+songTableCell attrs content =
+    el (List.append tableCellAttrs attrs) <| content
 
 
 linkToSong : ( SongId, (Processed Song) ) -> Element Msg
@@ -42,25 +42,20 @@ linkToSong ( songId, song ) =
     link [] { url = Url.Builder.relative [ "edit", songId ] [], label = text song.name }
 
 
-stateIcon : ProcessingState -> Element Msg
+stateIcon : ProcessingState -> String
 stateIcon state =
-    let
-        icon =
-            case state of
-                NotStarted ->
-                    "-"
+    case state of
+        NotStarted ->
+            "-"
 
-                InProgress _ ->
-                    "..."
+        InProgress _ ->
+            "..."
 
-                Complete ->
-                    ">"
+        Complete ->
+            ">"
 
-                Failed err ->
-                    "x"
-
-    in
-        text icon
+        Failed err ->
+            "x"
 
 
 viewSongDict : Model -> SongDict -> Element Msg
@@ -71,17 +66,17 @@ viewSongDict model songDict =
                 (List.append [ centerX, centerY, width shrink ] tableBorder)
                 { data = Dict.toList songDict
                 , columns =
-                    [ { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Song")
+                    [ { header = songTableCell [ Font.bold ] <| text "Song"
                         , width = fill |> maximum 300
-                        , view = (linkToSong >> songTableCell)
+                        , view = (linkToSong >> songTableCell [])
                         }
-                    , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Artist")
+                    , { header = songTableCell [ Font.bold ] <| text "Artist"
                         , width = fill |> maximum 300
-                        , view = (Tuple.second >> .artist >> text >> songTableCell)
+                        , view = (Tuple.second >> .artist >> text >> songTableCell [])
                         }
-                    , { header = el (List.append [ Font.bold ] tableCellAttrs) (text "Play")
+                    , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
                         , width = fill |> maximum 50
-                        , view = (Tuple.second >> .processingState >> stateIcon >> songTableCell)
+                        , view = (Tuple.second >> .processingState >> stateIcon >> text >> el [ centerX ] >> songTableCell [])
                         }
                     ]
                 }

@@ -3,6 +3,7 @@ module Dashboard.State exposing (..)
 --
 
 import File exposing (File)
+import Debug
 import Dict
 import Http
 import Json.Decode as D
@@ -100,7 +101,7 @@ makeProcessingEvent : String -> String -> String -> ProcessingEvent
 makeProcessingEvent event task songId =
     let
         processingState =
-            case "event" of
+            case (Debug.log "event" event) of
                 "start" ->
                     InProgress task
 
