@@ -2,7 +2,7 @@ module MusicVideo exposing (..)
 
 --
 
-import Browser exposing (UrlRequest, application)
+import Browser exposing (UrlRequest(..), application)
 import Browser.Navigation as Nav
 import Debug exposing (log)
 import Dict
@@ -45,7 +45,6 @@ type Msg
     = DashboardPageMsg DashboardState.Msg
     | EditorPageMsg EditorState.Msg
     | PlayerPageMsg PlayerState.Msg
-    | GotSongUploads (WebData SongUpload)
     | ClickLink UrlRequest
     | ChangeUrl Url
 
@@ -61,15 +60,12 @@ type alias Model =
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     initCurrentPage
-    ( { route = Route.parseUrl url
-      , songDict = RemoteData.Loading
+    ( { route = Route.parseUrl (log "initUrl" url)
       , page = NotFoundPage
       , navKey = key
+      , songDict = RemoteData.Loading
       }
-    , Http.get
-        { url = Url.Builder.relative ["songs"] []
-        , expect = Http.expectJson (fromResult >> GotSongUploads) songUploadDecoder
-        }
+    , Cmd.none
     )
 
 
@@ -96,64 +92,79 @@ view model =
         { title = "Karaokedoke", body = [ html ] }
 
 
+songPage : Maybe (Processed Song) -> (pageModel -> Page) -> (Song -> ( pageModel, Cmd a )) -> ( Page, Cmd a )
+songPage foundSong pageConstructor pageInit =
+    case foundSong of
+        Just processedSong ->
+            case processedSong.processingState of
+                Complete ->
+                    let
+                        ( pageModel, pageCmd ) =
+                            pageInit { name = processedSong.name, artist = processedSong.artist }
+
+                    in
+                        ( pageConstructor pageModel, pageCmd )
+
+                _ ->
+                    ( NotFoundPage, Cmd.none )
+
+        Nothing ->
+            ( NotFoundPage, Cmd.none )
+
+
+updateWith : (pageModel -> Page) -> (pageMsg -> Msg) -> Model -> ( pageModel, Cmd pageMsg ) -> ( Model, Cmd Msg )
+updateWith toPageModel toMsg model ( pageModel, pageCmd ) =
+    ( { model | page = toPageModel pageModel }
+    , Cmd.map toMsg pageCmd
+    )
+
+
+dashboardUpdate : Model -> ( DashboardState.Model, WebData SongDict, Cmd DashboardState.Msg ) -> ( Model, Cmd Msg )
+dashboardUpdate model ( pageModel, songDict, pageCmd ) =
+    ( { model | page = DashboardPage pageModel, songDict = songDict }
+    , Cmd.map DashboardPageMsg pageCmd
+    )
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.page ) of
         ( DashboardPageMsg dashboardMsg, DashboardPage pageModel ) ->
-            let
-                (newPage, pageCmd) = DashboardState.update dashboardMsg pageModel
-            in
-                ( { model
-                    | songDict = RemoteData.map (DashboardState.updateSongDict dashboardMsg) model.songDict
-                    , page = DashboardPage newPage
-                }
-                , Cmd.map DashboardPageMsg pageCmd
-                )
+            dashboardUpdate model <| DashboardState.update pageModel dashboardMsg model.songDict
 
         ( EditorPageMsg editorMsg, EditorPage pageModel ) ->
-            ( { model | page = EditorPage <| EditorState.update pageModel editorMsg }
-            , Cmd.none
-            )
+            updateWith EditorPage EditorPageMsg model <| EditorState.update pageModel editorMsg
 
         ( PlayerPageMsg playerMsg, PlayerPage pageModel ) ->
-            let
-                (newPage, pageCmd) = PlayerState.update pageModel playerMsg
-            in
-                ( { model | page = PlayerPage <| newPage }
-                , Cmd.map PlayerPageMsg pageCmd
-                )
+            updateWith PlayerPage PlayerPageMsg model <| PlayerState.update pageModel playerMsg
 
-        ( GotSongUploads songUploadsResult, _ ) ->
-            let
-                newSongDict =
-                    case songUploadsResult of
-                        Success songUploads ->
-                            RemoteData.succeed
-                                <| mergeSongUploads songUploads
-                                    <| RemoteData.withDefault Dict.empty model.songDict
+        ( ClickLink (Internal url), _ ) ->
+            ( model, Nav.pushUrl model.navKey (Url.toString url) )
 
-                        Failure err ->
-                            Failure err
-
-                        Loading ->
-                            Failure (Http.BadBody "got uploads, still loading?")
-
-                        otherResult ->
-                            model.songDict
-
-            in
-                ( { model | songDict = newSongDict }
-                , Cmd.none
-                )
-
-        ( ClickLink request, _ ) ->
-            ( model, Cmd.none ) -- TODO
+        ( ClickLink (External url), _ ) ->
+            ( model, Nav.load url )
 
         ( ChangeUrl url, _ ) ->
-            ( model, Cmd.none ) -- TODO
+            initCurrentPage ( { model | route = Route.parseUrl url }, Cmd.none )
 
         ( _, _ ) ->
             ( model, Cmd.none )
+
+
+initPageWithSong : SongId -> WebData SongDict -> (pageModel -> Page) -> (pageMsg -> Msg) -> (SongId -> Song -> ( pageModel, Cmd pageMsg )) -> ( Page, Cmd Msg )
+initPageWithSong songId songDict toPageModel toPageMsg pageInit =
+    let
+        songFromId = RemoteData.withDefault Dict.empty songDict |> Dict.get songId
+    in
+        case songFromId of
+            Just song ->
+                let
+                    ( pageModel, pageCmds ) =
+                        pageInit songId { name = song.name, artist = song.artist }
+                in
+                    ( toPageModel pageModel, Cmd.map toPageMsg pageCmds )
+
+            Nothing ->
+                ( NotFoundPage, Cmd.none )
 
 
 initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -172,25 +183,10 @@ initCurrentPage ( model, existingCmds ) =
                         ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds)
 
                 Route.Editor songId ->
-                    let
-                        songFromId = RemoteData.withDefault Dict.empty model.songDict |> Dict.get songId
-                    in
-                        case songFromId of
-                            Just song ->
-                                let
-                                    ( pageModel, pageCmds ) = EditorState.init { name = song.name, artist = song.artist }
-                                in
-                                    ( EditorPage pageModel, Cmd.map EditorPageMsg pageCmds )
-
-                            Nothing ->
-                                ( NotFoundPage, Cmd.none )
+                    initPageWithSong songId model.songDict EditorPage EditorPageMsg EditorState.init
 
                 Route.Player songId ->
-                    let
-                        ( pageModel, pageCmds ) =
-                            PlayerState.init -- need to init this with the song
-                    in
-                        ( PlayerPage pageModel, Cmd.map PlayerPageMsg pageCmds )
+                    initPageWithSong songId model.songDict PlayerPage PlayerPageMsg PlayerState.init
     in
     ( { model | page = currentPage }
     , Cmd.batch [ existingCmds, mappedPageCmds ]

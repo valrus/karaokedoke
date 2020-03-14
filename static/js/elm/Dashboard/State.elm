@@ -9,7 +9,7 @@ import Http
 import Json.Decode as D
 import Ports
 import List exposing (filter)
-import RemoteData exposing (fromResult)
+import RemoteData exposing (WebData, fromResult)
 import Url.Builder
 
 --
@@ -37,59 +37,61 @@ type Msg
     | HandleProcessingEvent (Result D.Error ProcessingEvent)
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case msg of
-        DragEnter ->
-            ( { model | dragging = True }, Cmd.none )
-
-        DragLeave ->
-            ( { model | dragging = False }, Cmd.none )
-
-        ProcessFiles file files ->
-            ( { model | dragging = False }
-            , Http.post
-                { url = Url.Builder.relative ["songs"] []
-                , body = Http.multipartBody <| List.map (Http.filePart "song[]") <| file :: files
-                , expect = Http.expectJson AddUploadedSongs <| songUploadDecoder
-                }
-            )
-
-        _ ->
-            ( model, Cmd.none )
-
-
 updateSongWithState : ProcessingState -> Maybe (Processed Song) -> Maybe (Processed Song)
 updateSongWithState newState currentSong =
     Maybe.map (updateProcessingState newState) currentSong
 
 
-updateSongDict : Msg -> SongDict -> SongDict
-updateSongDict msg songDict =
+updateSongDict : Model -> WebData SongDict -> ( Model, WebData SongDict, Cmd Msg )
+updateSongDict model songDict =
+    ( model, songDict, Cmd.none )
+
+
+update : Model -> Msg -> (WebData SongDict) -> ( Model, WebData SongDict, Cmd Msg )
+update model msg songDict =
     case msg of
         AddUploadedSongs (Ok songUpload) ->
-            mergeSongUploads songUpload songDict
+            updateSongDict model <| RemoteData.succeed <|
+                mergeSongUploads songUpload <| RemoteData.withDefault Dict.empty songDict
 
         AddUploadedSongs (Err songUploadError) ->
-            -- TODO replace ugly debugger code with actual error handling
-            Dict.singleton "err" { name = "-", artist = "-", processingState = Failed (errorToString songUploadError) }
+            updateSongDict model <| RemoteData.Failure <| songUploadError
 
         DeleteSong songId ->
-            Dict.remove songId songDict
+            updateSongDict model <| RemoteData.map (Dict.remove songId) songDict
+
+        DragEnter ->
+            ( { model | dragging = True }, songDict, Cmd.none )
+
+        DragLeave ->
+            ( { model | dragging = False }, songDict, Cmd.none )
 
         HandleProcessingEvent (Ok processingEvent) ->
-            Dict.update processingEvent.songId (updateSongWithState processingEvent.processingState) songDict
+            updateSongDict model <| RemoteData.map
+                (Dict.update processingEvent.songId <| updateSongWithState processingEvent.processingState) songDict
 
         HandleProcessingEvent (Err eventDecodeError) ->
-            songDict
+            updateSongDict model songDict
 
-        _ ->
-            songDict
+        ProcessFiles file files ->
+            ( { model | dragging = False }
+            , songDict
+            , Http.post
+                { url = Url.Builder.absolute ["api", "songs"] []
+                , body = Http.multipartBody <| List.map (Http.filePart "song[]") <| file :: files
+                , expect = Http.expectJson AddUploadedSongs songUploadDecoder
+                }
+            )
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( { dragging = False }, Cmd.none )
+    ( { dragging = False }
+    , Http.get
+        { url = Url.Builder.absolute ["api", "songs"] []
+        , expect = Http.expectJson AddUploadedSongs songUploadDecoder
+        }
+    )
 
 
 subscriptions : Model -> Sub Msg

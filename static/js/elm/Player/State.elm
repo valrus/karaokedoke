@@ -11,6 +11,7 @@ import Time
 import Helpers exposing (Milliseconds, inSeconds, seconds)
 import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (lyricBaseFontName, svgScratchId)
+import Song exposing (Song, SongId)
 import Scrubber.State as Scrubber
 
 
@@ -23,16 +24,18 @@ type PlayState
 
 
 type alias Model =
-    { page : Maybe SizedLyricPage
+    { song : Song
+    , page : Maybe SizedLyricPage
     , playing : PlayState
     , lyrics : LyricBook
     , scrubber : Scrubber.Model
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { page = Nothing
+init : SongId -> Song -> ( Model, Cmd Msg )
+init _ song =
+    ( { song = song
+      , page = Nothing
       , playing = Loading
       , lyrics = []
       , scrubber = Scrubber.init
@@ -80,22 +83,18 @@ last l =
 
 pageStartTime : LyricPage -> Maybe Milliseconds
 pageStartTime page =
-    List.head page
-        |> Maybe.andThen List.head
-        |> Maybe.andThen (Just << .time)
+    Just page.begin
 
 
 sizedPageStartTime : SizedLyricPage -> Maybe Milliseconds
-sizedPageStartTime page =
-    List.head page.content
-        |> Maybe.andThen (Just << .content)
-        |> Maybe.andThen List.head
-        |> Maybe.andThen (Just << .time)
+sizedPageStartTime =
+    .content >> List.head >> Maybe.map .content >> Maybe.map .begin
 
 
 pageIsBefore : Milliseconds -> LyricPage -> Bool
 pageIsBefore t page =
-    List.head page
+    List.head page.lines
+        |> Maybe.andThen (Just << .tokens)
         |> Maybe.andThen List.head
         |> lyricBefore t
 

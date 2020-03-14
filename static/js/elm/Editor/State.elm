@@ -2,35 +2,68 @@ module Editor.State exposing (..)
 
 --
 
+import Debug exposing (log)
+import Http
 import List exposing (filter)
+import RemoteData exposing (WebData, RemoteData(..))
+import Url.Builder
 
 --
 
-import Lyrics.Model exposing (LyricBook)
+import Lyrics.Model exposing (LyricBook, lyricBookDecoder)
+import Ports
 import Song exposing (Song, SongId)
 
 
 type alias Model =
-    { song : Song
-    , lyrics : LyricBook
+    { songId : SongId
+    , song : Song
+    , lyrics : WebData LyricBook
+    , waveformAvailable : Bool
     }
 
 
-init : Song -> ( Model, Cmd Msg )
-init song =
-    ( { song = song
-      , lyrics = [] -- note: init with the song lyrics
+type Msg
+    = GotLyrics (Result Http.Error LyricBook)
+    | MoveLyric
+    | GotWaveform
+
+
+waveformContainerName : String
+waveformContainerName =
+    "waveform"
+
+
+init : SongId -> Song -> ( Model, Cmd Msg )
+init songId song =
+    ( { songId = songId
+      , song = song
+      , lyrics = Loading
+      , waveformAvailable = False
       }
-    , Cmd.none
+    , Http.get
+        { url = Url.Builder.absolute [ "api", "lyrics", songId ] []
+        , expect = Http.expectJson GotLyrics lyricBookDecoder
+        }
     )
 
 
-type Msg
-    = MoveLyric
-
-
-update : Model -> Msg -> Model
+update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
+        GotLyrics (Ok lyricBook) ->
+            ( { model | lyrics = Success lyricBook }
+            , Ports.jsEditorInitWaveform <|
+                { containerId = waveformContainerName
+                , songUrl = Url.Builder.absolute [ "api", "songs", model.songId ] []
+                }
+            )
+
+        GotLyrics (Err error) ->
+            ( { model | lyrics = Failure error }, Cmd.none )
+
         MoveLyric ->
-            model
+            ( model, Cmd.none )
+
+        GotWaveform ->
+            ( { model | waveformAvailable = True }, Cmd.none )

@@ -9,7 +9,7 @@ import Html.Attributes as HtmlAttr
 import Html.Events exposing (on, onMouseDown, onMouseLeave, onMouseOver, onMouseUp)
 import Html.Lazy exposing (lazy2)
 import Json.Decode as Decode
-import Lyrics.Model exposing (Lyric, LyricBook, LyricLine, LyricPage)
+import Lyrics.Model exposing (Lyric, LyricBook, LyricLine, LyricPage, pageTokenList)
 import Player.State exposing (Msg(..), ModelMsg(..))
 import String
 import Scrubber.State exposing (..)
@@ -75,27 +75,32 @@ lyricMark duration tokenCount index lyric =
     in
     Html.div
         [ HtmlAttr.style "position" "absolute"
-        , HtmlAttr.style "left" ((String.fromFloat <| timeAsPercent duration lyric.time) ++ "%")
+        , HtmlAttr.style "left" ((String.fromFloat <| timeAsPercent duration lyric.begin) ++ "%")
         , HtmlAttr.style "top" ((String.fromInt <| (index * (markHeight + 1)) + 4) ++ "px")
         , HtmlAttr.style "width" "5px"
         , HtmlAttr.style "height" ((String.fromInt <| markHeight) ++ "px")
         , HtmlAttr.style "display" "block"
         , HtmlAttr.style "overflow" "auto"
         , HtmlAttr.style "background-color" "#a00"
-        , HtmlAttr.title lyric.text
-        , onMouseUp (SetPlayhead <| lyric.time)
+        , HtmlAttr.title lyric.token
+        , onMouseUp (SetPlayhead <| lyric.begin)
         ]
         []
 
 
 lineMarks : Milliseconds -> Int -> LyricLine -> List (Html Msg)
 lineMarks duration tokenCount line =
-    List.indexedMap (lyricMark duration tokenCount) line
+    List.indexedMap (lyricMark duration tokenCount) line.tokens
+
+
+countLineTokens : LyricLine -> Int
+countLineTokens line =
+    List.length line.tokens
 
 
 countPageTokens : LyricPage -> Int
 countPageTokens page =
-    List.map List.length page |> List.sum
+    List.map countLineTokens page.lines |> List.sum
 
 
 pageMarks : Milliseconds -> LyricPage -> List (Html Msg)
@@ -108,7 +113,7 @@ pageMarks duration page =
         ]
       <|
         List.indexedMap (lyricMark duration <| countPageTokens page) <|
-            List.concat page
+            List.concat (pageTokenList page)
     ]
 
 

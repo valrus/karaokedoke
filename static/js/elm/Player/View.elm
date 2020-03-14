@@ -25,9 +25,9 @@ type alias VerticalLine =
     }
 
 
-lineBefore : Milliseconds -> WithDims LyricLine -> Bool
+lineBefore : Milliseconds -> SizedLyricLine -> Bool
 lineBefore t line =
-    List.head line.content
+    List.head line.content.tokens
         |> lyricBefore t
 
 
@@ -46,15 +46,15 @@ fontSizeToFill extent controlWidth =
     fontScale extent controlWidth * controlFontSize
 
 
-lineWithHeight : Milliseconds -> WithDims LyricLine -> VerticalLine
+lineWithHeight : Milliseconds -> SizedLyricLine -> VerticalLine
 lineWithHeight time line =
     let
         factor =
             fontScale 1024.0 line.width
     in
     { content =
-        List.filter (Just >> lyricBefore time) line.content
-            |> List.map .text
+        List.filter (Just >> lyricBefore time) line.content.tokens
+            |> List.map .token
             |> String.join ""
             |> Svg.text
     , fontSize = fontSizeToFill 1024.0 line.width
@@ -97,7 +97,7 @@ lyricToSvg : Lyric -> Svg Msg
 lyricToSvg lyric =
     Svg.g []
         [ Svg.text_ []
-            [ Svg.text lyric.text ]
+            [ Svg.text lyric.token ]
         ]
 
 

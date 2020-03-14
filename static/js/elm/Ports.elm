@@ -26,6 +26,9 @@ port processingEvent : (Json.Decode.Value -> msg) -> Sub msg
 -- Outgoing
 
 
+port jsEditorInitWaveform : { containerId : String, songUrl : String } -> Cmd msg
+
+
 port jsLoadFonts : List { name : String, path : String } -> Cmd msg
 
 

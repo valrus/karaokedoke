@@ -39,7 +39,7 @@ songTableCell attrs content =
 
 linkToSong : ( SongId, (Processed Song) ) -> Element Msg
 linkToSong ( songId, song ) =
-    link [] { url = Url.Builder.relative [ "edit", songId ] [], label = text song.name }
+    link [] { url = Url.Builder.absolute [ "edit", songId ] [], label = text song.name }
 
 
 stateIcon : ProcessingState -> String
