@@ -1,24 +1,29 @@
 module Lyrics.Model exposing (..)
 
+import Json.Decode as Decode
+import Json.Decode.Extra
+
 import Helpers exposing (Milliseconds)
 
 
+type alias Timespan t =
+    { t | begin : Milliseconds, end : Milliseconds }
+
+
 type alias Lyric =
-    { text : String
-    , time : Milliseconds
-    }
+    { token : String, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricLine =
-    List Lyric
+    { tokens : List Lyric, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricPage =
-    List LyricLine
+    { lines : List LyricLine, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricBook =
-    List LyricPage
+    List (Timespan LyricPage)
 
 
 type alias Position =
@@ -39,39 +44,113 @@ type alias Size =
     }
 
 
-type alias Sized t =
-    { content : t
-    , size : Size
-    }
-
-
-type alias WithDims t =
-    { content : t
+type alias SizedLyricLine =
+    { content : LyricLine
     , width : Float
     , y : Height
     }
 
 
-type alias Located t =
-    { content : t
-    , size : Size
-    , pos : Position
-    }
-
-
 type alias SizedLyricPage =
-    Sized (List (WithDims LyricLine))
+    { content : List SizedLyricLine
+    , size : Size
+    }
 
 
 type alias SizedLyricBook =
     List SizedLyricPage
 
 
+pageTokenList : LyricPage -> List (List Lyric)
+pageTokenList page =
+    List.map .tokens page.lines
+
+
 lyricBefore : Milliseconds -> Maybe Lyric -> Bool
-lyricBefore t token =
-    case token of
+lyricBefore t maybeLyric =
+    case maybeLyric of
         Nothing ->
             False
 
-        Just tok ->
-            tok.time < t
+        Just lyric ->
+            lyric.begin < t
+
+-- {
+--   "$id": "https://example.com/arrays.schema.json",
+--   "$schema": "http://json-schema.org/draft-07/schema#",
+--   "description": "Song lyrics annotated with their position in a song.",
+--   "type": "object",
+--   "properties": {
+--     "fragments": {
+--       "type": "array",
+--       "items": { "$ref": "#/definitions/fragment" }
+--     },
+--   },
+--   "definitions": {
+--     "fragment": {
+--       "type": "object",
+--       "required": [ "begin", "children", "end", "id", "language", "lines" ],
+--       "properties": {
+--         "begin": {"type": "string", "description": "The time when this fragment starts, in seconds."},
+--         "children": {"type": "array", "items": { "$ref": "#/definitions/fragment" }},
+--         "end": {"type": "string", "description": "The time when this fragment ends, in seconds."},
+--         "id": {"type": "string"},
+--         "language": {"type": "string"},
+--         "lines": {"type: "array", "items": {"type": "string"}}
+--       }
+--     }
+--   }
+-- }
+
+
+makeLyricPage : Milliseconds -> Milliseconds -> List LyricLine -> LyricPage
+makeLyricPage begin end lines =
+    { begin = begin, end = end, lines = lines }
+
+
+makeLyricLine : Milliseconds -> Milliseconds -> List Lyric -> LyricLine
+makeLyricLine begin end tokens =
+    { begin = begin, end = end, tokens = tokens }
+
+
+makeLyric : Milliseconds -> Milliseconds -> String -> Lyric
+makeLyric begin end token =
+    { begin = begin, end = end, token = token }
+
+
+lyricCollectionDecoder : (Milliseconds -> Milliseconds -> a -> b) -> String -> Decode.Decoder a -> Decode.Decoder b
+lyricCollectionDecoder collectionConstructor subCollectionFieldName subCollectionDecoder =
+    Decode.map3 collectionConstructor
+        (Decode.field "begin" <| secondsStringAsMillisecondsDecoder)
+        (Decode.field "end" <| secondsStringAsMillisecondsDecoder)
+        (Decode.field subCollectionFieldName <| subCollectionDecoder)
+
+
+lyricDecoder : Decode.Decoder Lyric
+lyricDecoder =
+    lyricCollectionDecoder makeLyric "lines" (Decode.list Decode.string |> Decode.map (String.join " "))
+
+
+lyricLineDecoder : Decode.Decoder LyricLine
+lyricLineDecoder =
+    lyricCollectionDecoder makeLyricLine "children" (Decode.list lyricDecoder)
+
+
+lyricPageDecoder : Decode.Decoder LyricPage
+lyricPageDecoder =
+    lyricCollectionDecoder makeLyricPage "children" (Decode.list lyricLineDecoder)
+
+
+lyricBookDecoder : Decode.Decoder LyricBook
+lyricBookDecoder =
+    Decode.field "fragments" <| Decode.list lyricPageDecoder
+
+
+secondsStringAsMillisecondsDecoder : Decode.Decoder Milliseconds
+secondsStringAsMillisecondsDecoder =
+    Decode.string |> Decode.andThen (stringToMilliseconds >> Json.Decode.Extra.fromResult)
+
+
+stringToMilliseconds : String -> Result String Milliseconds
+stringToMilliseconds =
+    String.toFloat >> Result.fromMaybe "couldn't convert to milliseconds" >> Result.map ((*) 1000)
