@@ -10,7 +10,7 @@ import Html exposing (Html)
 import Html.Attributes exposing (id)
 import Html.Events exposing (on)
 import Json.Decode
-import Lyrics.Model exposing (LyricBook)
+import Lyrics.Model exposing (..)
 import Ports
 import RemoteData exposing (RemoteData(..), WebData)
 
@@ -22,7 +22,8 @@ headerSection model =
         , centerX
         ]
     <|
-        text <| (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+        text <|
+            (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
 
 
 waveformSection : model -> Element Msg
@@ -35,24 +36,38 @@ waveformSection model =
         Element.none
 
 
+lineElement : Timespan LyricLine -> Element Msg
+lineElement line =
+    text <| String.join " " (List.map .token line.tokens)
+
+
+pageElement : Timespan LyricPage -> Element Msg
+pageElement page =
+    column [ centerX, alignTop, width fill ] <| List.map lineElement page.lines
+
+
+lyricsElement : LyricBook -> Element Msg
+lyricsElement lyrics =
+    column [ centerX, alignTop, width fill ] <| List.map pageElement lyrics
+
+
 lyricsSection : WebData LyricBook -> Element Msg
 lyricsSection lyricData =
     el
-        []
+        [ centerX, alignTop ]
     <|
-        text <|
-            case lyricData of
-                NotAsked ->
-                    "La de da"
+        case lyricData of
+            NotAsked ->
+                text "La de da"
 
-                Loading ->
-                    "Loading"
+            Loading ->
+                text "Loading"
 
-                Failure e ->
-                    errorToString e
+            Failure e ->
+                text <| errorToString e
 
-                Success lyrics ->
-                    "Lyrics will go here..."
+            Success lyrics ->
+                lyricsElement lyrics
 
 
 viewEditor : Model -> Element Msg
