@@ -38,7 +38,7 @@ waveformSection model =
 
 lineElement : Timespan LyricLine -> Element Msg
 lineElement line =
-    text <| String.join " " (List.map .token line.tokens)
+    row [ spacing 5, padding 5 ] <| (List.map .token >> List.map text) line.tokens
 
 
 pageElement : Timespan LyricPage -> Element Msg
