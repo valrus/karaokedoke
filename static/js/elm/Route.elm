@@ -1,5 +1,6 @@
 module Route exposing (Route(..), parseUrl)
 
+import Debug exposing (log)
 import Song exposing (SongId)
 import Url exposing (Url)
 import Url.Parser exposing (..)
@@ -19,12 +20,12 @@ songId =
 
 parseUrl : Url -> Route
 parseUrl url =
-    case parse matchRoute url of
+    case parse matchRoute (log "matchRoute url" url) of
         Just route ->
-            route
+            log "matchRoute route" route
 
         Nothing ->
-            NotFound
+            log "matchRoute not found" NotFound
 
 
 matchRoute : Parser (Route -> a) a

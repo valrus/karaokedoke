@@ -1,30 +1,31 @@
 module Player.State exposing (..)
 
-import Browser.Events exposing (onAnimationFrameDelta)
-import Debug exposing (log)
-import Ports
-import Task
-import Time
-
 --
 
+import Browser.Events exposing (onAnimationFrameDelta)
+import Debug exposing (log)
 import Helpers exposing (Milliseconds, inSeconds, seconds)
+import Http
 import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (lyricBaseFontName, svgScratchId)
-import Song exposing (Song, SongId)
+import Ports
+import RemoteData exposing (RemoteData(..), WebData)
 import Scrubber.State as Scrubber
+import Song exposing (Prepared, Song, SongId, songDecoder)
+import Task
+import Time
+import Url.Builder
 
 
 type PlayState
-    = Loading
-    | Paused
+    = Paused
     | Playing
     | Ended
     | Error
 
 
 type alias Model =
-    { song : Song
+    { song : WebData (Prepared Song)
     , page : Maybe SizedLyricPage
     , playing : PlayState
     , lyrics : LyricBook
@@ -32,15 +33,18 @@ type alias Model =
     }
 
 
-init : SongId -> Song -> ( Model, Cmd Msg )
-init _ song =
-    ( { song = song
+init : SongId -> ( Model, Cmd Msg )
+init songId =
+    ( { song = Loading
       , page = Nothing
-      , playing = Loading
+      , playing = Paused
       , lyrics = []
       , scrubber = Scrubber.init
       }
-    , Cmd.none
+    , Http.get
+        { url = Url.Builder.absolute [ "api", "song_data", songId ] []
+        , expect = Http.expectJson (GotSong >> Immediately) songDecoder
+        }
     )
 
 
@@ -52,7 +56,8 @@ type Msg
 
 
 type ModelMsg
-    = SetPageSizes (Maybe SizedLyricPage)
+    = GotSong (Result Http.Error (Prepared Song))
+    | SetPageSizes (Maybe SizedLyricPage)
     | SetDuration Milliseconds
     | SetPlayState PlayState
     | SyncPlayhead Milliseconds
@@ -71,7 +76,8 @@ animateTime model delta override =
 
         Nothing ->
             if model.playing == Playing then
-                (seconds model.scrubber.playhead) + delta
+                seconds model.scrubber.playhead + delta
+
             else
                 0
 
@@ -141,6 +147,12 @@ getNewPage prevPage nextPage =
 updateModel : ModelMsg -> Milliseconds -> Model -> ( Model, Cmd Msg )
 updateModel msg delta model =
     case msg of
+        GotSong (Ok song) ->
+            ( { model | song = Success song }, Cmd.none )
+
+        GotSong (Err error) ->
+            ( { model | song = Failure error }, Cmd.none )
+
         SetPageSizes result ->
             case result of
                 Nothing ->
@@ -264,6 +276,7 @@ update model msg =
             )
 
 
+
 -- Subscriptions and related functions
 
 
@@ -291,7 +304,7 @@ playStateOnLoad : Bool -> PlayState
 playStateOnLoad success =
     case success of
         True ->
-            Loading
+            Paused
 
         False ->
             Error

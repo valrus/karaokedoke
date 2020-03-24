@@ -5,26 +5,24 @@ module Editor.State exposing (..)
 import Debug exposing (log)
 import Http
 import List exposing (filter)
-import RemoteData exposing (WebData, RemoteData(..))
-import Url.Builder
-
---
-
 import Lyrics.Model exposing (LyricBook, lyricBookDecoder)
 import Ports
-import Song exposing (Song, SongId)
+import RemoteData exposing (RemoteData(..), WebData)
+import Song exposing (Song, SongId, Prepared, songDecoder)
+import Url.Builder
 
 
 type alias Model =
     { songId : SongId
-    , song : Song
+    , song : WebData (Prepared Song)
     , lyrics : WebData LyricBook
     , waveformAvailable : Bool
     }
 
 
 type Msg
-    = GotLyrics (Result Http.Error LyricBook)
+    = GotSong (Result Http.Error (Prepared Song))
+    | GotLyrics (Result Http.Error LyricBook)
     | MoveLyric
     | GotWaveform
 
@@ -34,17 +32,23 @@ waveformContainerName =
     "waveform"
 
 
-init : SongId -> Song -> ( Model, Cmd Msg )
-init songId song =
+init : SongId -> ( Model, Cmd Msg )
+init songId =
     ( { songId = songId
-      , song = song
+      , song = Loading
       , lyrics = Loading
       , waveformAvailable = False
       }
-    , Http.get
-        { url = Url.Builder.absolute [ "api", "lyrics", songId ] []
-        , expect = Http.expectJson GotLyrics lyricBookDecoder
-        }
+    , Cmd.batch
+        [ Http.get
+            { url = Url.Builder.absolute [ "api", "lyrics", songId ] []
+            , expect = Http.expectJson GotLyrics lyricBookDecoder
+            }
+        , Http.get
+            { url = Url.Builder.absolute [ "api", "song_data", songId ] []
+            , expect = Http.expectJson GotSong songDecoder
+            }
+        ]
     )
 
 
@@ -61,6 +65,12 @@ update model msg =
 
         GotLyrics (Err error) ->
             ( { model | lyrics = Failure error }, Cmd.none )
+
+        GotSong (Ok song) ->
+            ( { model | song = Success song }, Cmd.none )
+
+        GotSong (Err error) ->
+            ( { model | song = Failure error }, Cmd.none )
 
         MoveLyric ->
             ( model, Cmd.none )

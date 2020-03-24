@@ -1,25 +1,19 @@
 module MusicVideo exposing (..)
 
 --
+--
 
 import Browser exposing (UrlRequest(..), application)
 import Browser.Navigation as Nav
-import Debug exposing (log)
-import Dict
-import Html exposing (Html)
-import Http
-import Svg exposing (Svg)
-import Time exposing (Posix)
-import Url exposing (Url)
-import Url.Builder
-
---
-
 import Dashboard.State as DashboardState
 import Dashboard.View as DashboardView
+import Debug exposing (log)
+import Dict
 import Editor.State as EditorState
 import Editor.View as EditorView
 import Helpers exposing (Milliseconds)
+import Html exposing (Html)
+import Http
 import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
 import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
 import Player.State as PlayerState
@@ -28,10 +22,14 @@ import Ports exposing (..)
 import RemoteData exposing (..)
 import Route exposing (Route(..))
 import Song exposing (..)
+import Svg exposing (Svg)
+import Time exposing (Posix)
+import Url exposing (Url)
+import Url.Builder
 
 
-type alias Flags
-    = ()
+type alias Flags =
+    ()
 
 
 type Page
@@ -60,16 +58,18 @@ type alias Model =
 init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     initCurrentPage
-    ( { route = Route.parseUrl (log "initUrl" url)
-      , page = NotFoundPage
-      , navKey = key
-      , songDict = RemoteData.Loading
-      }
-    , Cmd.none
-    )
+        ( { route = Route.parseUrl (log "initUrl" url)
+          , page = NotFoundPage
+          , navKey = key
+          , songDict = RemoteData.Loading
+          }
+        , Cmd.none
+        )
+
 
 
 -- Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
+
 
 view : Model -> Browser.Document Msg
 view model =
@@ -87,9 +87,8 @@ view model =
 
                 PlayerPage playerModel ->
                     PlayerView.view playerModel |> Html.map PlayerPageMsg
-
     in
-        { title = "Karaokedoke", body = [ html ] }
+    { title = "Karaokedoke", body = [ html ] }
 
 
 songPage : Maybe (Processed Song) -> (pageModel -> Page) -> (Song -> ( pageModel, Cmd a )) -> ( Page, Cmd a )
@@ -101,9 +100,8 @@ songPage foundSong pageConstructor pageInit =
                     let
                         ( pageModel, pageCmd ) =
                             pageInit { name = processedSong.name, artist = processedSong.artist }
-
                     in
-                        ( pageConstructor pageModel, pageCmd )
+                    ( pageConstructor pageModel, pageCmd )
 
                 _ ->
                     ( NotFoundPage, Cmd.none )
@@ -124,6 +122,7 @@ dashboardUpdate model ( pageModel, songDict, pageCmd ) =
     ( { model | page = DashboardPage pageModel, songDict = songDict }
     , Cmd.map DashboardPageMsg pageCmd
     )
+
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -150,28 +149,20 @@ update msg model =
             ( model, Cmd.none )
 
 
-initPageWithSong : SongId -> WebData SongDict -> (pageModel -> Page) -> (pageMsg -> Msg) -> (SongId -> Song -> ( pageModel, Cmd pageMsg )) -> ( Page, Cmd Msg )
-initPageWithSong songId songDict toPageModel toPageMsg pageInit =
+initPageWithSongId : SongId -> (pageModel -> Page) -> (pageMsg -> Msg) -> (SongId -> ( pageModel, Cmd pageMsg )) -> ( Page, Cmd Msg )
+initPageWithSongId songId toPageModel toPageMsg pageInit =
     let
-        songFromId = RemoteData.withDefault Dict.empty songDict |> Dict.get songId
+        ( pageModel, pageCmds ) =
+            pageInit songId
     in
-        case songFromId of
-            Just song ->
-                let
-                    ( pageModel, pageCmds ) =
-                        pageInit songId { name = song.name, artist = song.artist }
-                in
-                    ( toPageModel pageModel, Cmd.map toPageMsg pageCmds )
-
-            Nothing ->
-                ( NotFoundPage, Cmd.none )
+    ( toPageModel pageModel, Cmd.map toPageMsg pageCmds )
 
 
 initCurrentPage : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 initCurrentPage ( model, existingCmds ) =
     let
         ( currentPage, mappedPageCmds ) =
-            case model.route of
+            case log "initCurrentPage route" model.route of
                 Route.NotFound ->
                     ( NotFoundPage, Cmd.none )
 
@@ -180,15 +171,16 @@ initCurrentPage ( model, existingCmds ) =
                         ( pageModel, pageCmds ) =
                             DashboardState.init
                     in
-                        ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds)
+                    ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds )
 
                 Route.Editor songId ->
-                    initPageWithSong songId model.songDict EditorPage EditorPageMsg EditorState.init
+                    -- need to load the song dict somehow here... unless...??
+                    initPageWithSongId songId EditorPage EditorPageMsg EditorState.init
 
                 Route.Player songId ->
-                    initPageWithSong songId model.songDict PlayerPage PlayerPageMsg PlayerState.init
+                    initPageWithSongId songId PlayerPage PlayerPageMsg PlayerState.init
     in
-    ( { model | page = currentPage }
+    ( { model | page = log "currentPage in initCurrentPage" currentPage }
     , Cmd.batch [ existingCmds, mappedPageCmds ]
     )
 
