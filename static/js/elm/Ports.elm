@@ -4,7 +4,11 @@ import Json.Decode
 import Lyrics.Model exposing (LyricPage, SizedLyricPage)
 
 
+
 -- Incoming
+
+
+port gotWaveform : (Json.Decode.Value -> msg) -> Sub msg
 
 
 port loadedFonts : (Bool -> msg) -> Sub msg

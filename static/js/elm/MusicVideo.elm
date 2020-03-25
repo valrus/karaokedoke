@@ -174,7 +174,6 @@ initCurrentPage ( model, existingCmds ) =
                     ( DashboardPage pageModel, Cmd.map DashboardPageMsg pageCmds )
 
                 Route.Editor songId ->
-                    -- need to load the song dict somehow here... unless...??
                     initPageWithSongId songId EditorPage EditorPageMsg EditorState.init
 
                 Route.Player songId ->
@@ -195,7 +194,7 @@ subscriptions model =
             Sub.map DashboardPageMsg <| DashboardState.subscriptions dashboardModel
 
         EditorPage editorModel ->
-            Sub.none
+            Sub.map EditorPageMsg <| EditorState.subscriptions editorModel
 
         PlayerPage playerModel ->
             Sub.map PlayerPageMsg <| PlayerState.subscriptions playerModel
