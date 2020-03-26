@@ -97,19 +97,6 @@ sizedPageStartTime =
     .content >> List.head >> Maybe.map .content >> Maybe.map .begin
 
 
-pageIsBefore : Milliseconds -> LyricPage -> Bool
-pageIsBefore t page =
-    List.head page.lines
-        |> Maybe.andThen (Just << .tokens)
-        |> Maybe.andThen List.head
-        |> lyricBefore t
-
-
-findPage : Milliseconds -> LyricBook -> Maybe LyricPage
-findPage time book =
-    last <| List.filter (pageIsBefore time) book
-
-
 pagesMatch : SizedLyricPage -> LyricPage -> Bool
 pagesMatch sizedPage otherPage =
     sizedPageStartTime sizedPage == pageStartTime otherPage
@@ -187,7 +174,7 @@ updateModel msg delta model =
                     animateTime model delta timeOverride
 
                 newPage =
-                    findPage newTime model.lyrics
+                    pageAtTime newTime model.lyrics
             in
             ( { model
                 | scrubber = Scrubber.setPlayhead newTime model.scrubber

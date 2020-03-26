@@ -3,6 +3,7 @@ module Editor.State exposing (..)
 --
 
 import Debug exposing (log)
+import Helpers
 import Http
 import Json.Decode as D
 import List exposing (filter)
@@ -22,6 +23,7 @@ type alias Model =
     , song : WebData (Prepared Song)
     , lyrics : WebData LyricBook
     , waveform : WaveformResult
+    , snipping : Bool
     }
 
 
@@ -30,6 +32,9 @@ type Msg
     | GotLyrics (Result Http.Error LyricBook)
     | MoveLyric
     | GotWaveform (Result D.Error WaveformResult)
+    | ClickedSnipStrip
+    | Snipped
+    | CanceledSnip
 
 
 waveformContainerName : String
@@ -43,6 +48,7 @@ init songId =
       , song = Loading
       , lyrics = Loading
       , waveform = NotAsked
+      , snipping = False
       }
     , Cmd.batch
         [ Http.get
@@ -79,6 +85,11 @@ waveformInitResultDecoder =
     D.map2 makeWaveformResult (D.at [ "success" ] D.bool) (D.at [ "error" ] D.string)
 
 
+makeRegions : LyricBook -> List Ports.WaveformRegion
+makeRegions lyrics =
+    List.map (\page -> { start = Helpers.inSeconds page.begin, end = Helpers.inSeconds page.end }) lyrics
+
+
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
@@ -106,4 +117,15 @@ update model msg =
             ( { model | waveform = Failure (D.errorToString waveformResultDecodeError) }, Cmd.none )
 
         GotWaveform (Ok result) ->
-            ( { model | waveform = log "GotWaveform Ok" result }, Cmd.none )
+            ( { model | waveform = log "GotWaveform Ok" result }
+            , Ports.jsEditorCreateRegions <| RemoteData.unwrap [] makeRegions model.lyrics
+            )
+
+        ClickedSnipStrip ->
+            ( { model | snipping = True }, Cmd.none )
+
+        Snipped ->
+            ( { model | snipping = False }, Cmd.none )
+
+        CanceledSnip ->
+            ( { model | snipping = False }, Cmd.none )

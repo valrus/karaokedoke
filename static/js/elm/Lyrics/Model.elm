@@ -1,9 +1,8 @@
 module Lyrics.Model exposing (..)
 
+import Helpers exposing (Milliseconds)
 import Json.Decode as Decode
 import Json.Decode.Extra
-
-import Helpers exposing (Milliseconds)
 
 
 type alias Timespan t =
@@ -11,15 +10,15 @@ type alias Timespan t =
 
 
 type alias Lyric =
-    { token : String, begin : Milliseconds, end : Milliseconds }
+    { id : String, token : String, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricLine =
-    { tokens : List Lyric, begin : Milliseconds, end : Milliseconds }
+    { id : String, tokens : List Lyric, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricPage =
-    { lines : List LyricLine, begin : Milliseconds, end : Milliseconds }
+    { id : String, lines : List LyricLine, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricBook =
@@ -75,6 +74,21 @@ lyricBefore t maybeLyric =
         Just lyric ->
             lyric.begin < t
 
+
+pageIsBefore : Milliseconds -> LyricPage -> Bool
+pageIsBefore t page =
+    List.head page.lines
+        |> Maybe.andThen (Just << .tokens)
+        |> Maybe.andThen List.head
+        |> lyricBefore t
+
+
+pageAtTime : Milliseconds -> LyricBook -> Maybe LyricPage
+pageAtTime time book =
+    List.head <| List.filter (not << pageIsBefore time) book
+
+
+
 -- {
 --   "$id": "https://example.com/arrays.schema.json",
 --   "$schema": "http://json-schema.org/draft-07/schema#",
@@ -103,24 +117,25 @@ lyricBefore t maybeLyric =
 -- }
 
 
-makeLyricPage : Milliseconds -> Milliseconds -> List LyricLine -> LyricPage
-makeLyricPage begin end lines =
-    { begin = begin, end = end, lines = lines }
+makeLyricPage : String -> Milliseconds -> Milliseconds -> List LyricLine -> LyricPage
+makeLyricPage id begin end lines =
+    { id = id, begin = begin, end = end, lines = lines }
 
 
-makeLyricLine : Milliseconds -> Milliseconds -> List Lyric -> LyricLine
-makeLyricLine begin end tokens =
-    { begin = begin, end = end, tokens = tokens }
+makeLyricLine : String -> Milliseconds -> Milliseconds -> List Lyric -> LyricLine
+makeLyricLine id begin end tokens =
+    { id = id, begin = begin, end = end, tokens = tokens }
 
 
-makeLyric : Milliseconds -> Milliseconds -> String -> Lyric
-makeLyric begin end token =
-    { begin = begin, end = end, token = token }
+makeLyric : String -> Milliseconds -> Milliseconds -> String -> Lyric
+makeLyric id begin end token =
+    { id = id, begin = begin, end = end, token = token }
 
 
-lyricCollectionDecoder : (Milliseconds -> Milliseconds -> a -> b) -> String -> Decode.Decoder a -> Decode.Decoder b
+lyricCollectionDecoder : (String -> Milliseconds -> Milliseconds -> a -> b) -> String -> Decode.Decoder a -> Decode.Decoder b
 lyricCollectionDecoder collectionConstructor subCollectionFieldName subCollectionDecoder =
-    Decode.map3 collectionConstructor
+    Decode.map4 collectionConstructor
+        (Decode.field "id" <| Decode.string)
         (Decode.field "begin" <| secondsStringAsMillisecondsDecoder)
         (Decode.field "end" <| secondsStringAsMillisecondsDecoder)
         (Decode.field subCollectionFieldName <| subCollectionDecoder)

@@ -14,6 +14,9 @@ function initializeWavesurfer(app, args) {
     wavesurfer.on('error', function(errorString) {
         app.ports.gotWaveform.send({ success: false, error: errorString });
     });
+    app.ports.jsEditorCreateRegions.subscribe(function(regions) {
+        regions.forEach(region => { wavesurfer.addRegion(region); console.log(region) });
+    });
     wavesurfer.load(args.songUrl);
     return (wavesurfer !== 'undefined');
 }
