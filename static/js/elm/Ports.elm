@@ -50,6 +50,9 @@ port processingEvent : (Json.Decode.Value -> msg) -> Sub msg
 port jsEditorInitWaveform : { containerId : String, songUrl : String } -> Cmd msg
 
 
+port jsEditorDestroyWaveform : () -> Cmd msg
+
+
 port jsEditorCreateRegions : List WaveformRegion -> Cmd msg
 
 

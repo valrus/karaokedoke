@@ -143,7 +143,10 @@ update msg model =
             ( model, Nav.load url )
 
         ( ChangeUrl url, _ ) ->
-            initCurrentPage ( { model | route = Route.parseUrl url }, Cmd.none )
+            initCurrentPage
+            ( { model | route = Route.parseUrl url }
+            , Ports.jsEditorDestroyWaveform ()
+            )
 
         ( _, _ ) ->
             ( model, Cmd.none )

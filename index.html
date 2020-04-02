@@ -37,6 +37,11 @@
              app.ports.gotSizes.send(sizedLyricPage);
          });
 
+         app.ports.jsEditorDestroyWaveform.subscribe(function() {
+             console.log("hit destroyWaveform in js");
+             destroyWavesurfer();
+         });
+
          function makeSvgTextElement(font) {
              var svg = document.createElementNS(svgNS, "svg");
              var textElement = document.createElementNS(svgNS, "text");
