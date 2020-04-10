@@ -32,8 +32,8 @@ headerSection model =
 -- cursor setting: https://gist.github.com/dsdsdsdsdsds/bd142334efcd81f0b30e
 
 
-snipArea : Model -> Element Msg
-snipArea model =
+snipStrip : Model -> Element Msg
+snipStrip model =
     let
         cursorStyle =
             if model.snipping then
@@ -46,8 +46,8 @@ snipArea model =
         (List.concat
             [ [ centerX
               , alignTop
-              , width fill
-              , height (px 16)
+              , height fill
+              , width (px 16)
               , Background.color <| rgba 1.0 0.0 0.0 0.1
               , htmlAttribute <| style "cursor" cursorStyle
               , Events.onMouseDown ClickedSnipStrip
@@ -76,9 +76,7 @@ waveform =
 waveformSection : Model -> Element Msg
 waveformSection model =
     column [ width fill, centerX ]
-        [ waveform
-        , snipArea model
-        ]
+        [ waveform ]
 
 
 lineElement : Timespan LyricLine -> Element Msg
@@ -88,31 +86,35 @@ lineElement line =
 
 pageElement : Timespan LyricPage -> Element Msg
 pageElement page =
-    column [ centerX, alignTop, width fill ] <| List.map lineElement page.lines
-
-
-lyricsElement : LyricBook -> Element Msg
-lyricsElement lyrics =
-    column [ centerX, alignTop, width fill ] <| List.map pageElement lyrics
-
-
-lyricsSection : WebData LyricBook -> Element Msg
-lyricsSection lyricData =
-    el
-        [ centerX, alignTop ]
+    column
+        [ centerX, alignTop, width fill, Background.color <| rgba 0.9 0.9 0.9 0.8 ]
     <|
+        List.map lineElement page.lines
+
+
+lyricsElement : WebData LyricBook -> Element Msg
+lyricsElement lyricData =
+    column [ centerX, alignTop, width fill, spacing 10 ] <|
         case lyricData of
             NotAsked ->
-                text "La de da"
+                [ text "La de da" ]
 
             Loading ->
-                text "Loading"
+                [ text "Loading" ]
 
             Failure e ->
-                text <| errorToString e
+                [ text <| errorToString e ]
 
             Success lyrics ->
-                lyricsElement lyrics
+                List.map pageElement lyrics
+
+
+lyricsSection : Model -> Element Msg
+lyricsSection model =
+    row
+        [ centerX, alignTop ]
+        [ snipStrip model
+        , lyricsElement model.lyrics ]
 
 
 iconAttribution : Element Msg
@@ -122,7 +124,7 @@ iconAttribution =
         , width fill
         , alignBottom
         , padding 10
-        , Background.color <| rgba 0.0 0.0 0.8 0.8
+        , Background.color <| rgba 0.8 0.8 1.0 0.9
         ]
     <|
         paragraph
@@ -145,7 +147,7 @@ viewEditor model =
         ]
         [ headerSection model
         , waveformSection model
-        , lyricsSection model.lyrics
+        , lyricsSection model
         ]
 
 

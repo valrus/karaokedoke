@@ -4,8 +4,10 @@ import Dict
 import File
 import Html exposing (Html)
 import Html.Events exposing (preventDefaultOn)
+import Html.Attributes exposing (style)
 import Element exposing (..)
 import Element.Border as Border
+import Element.Events as Events
 import Element.Font as Font
 import Json.Decode as D
 import RemoteData exposing (WebData, RemoteData(..))
@@ -37,9 +39,17 @@ songTableCell attrs content =
     el (List.append tableCellAttrs attrs) <| content
 
 
-linkToSong : ( SongId, (Processed Song) ) -> Element Msg
-linkToSong ( songId, song ) =
+editSongLink : ( SongId, (Processed Song) ) -> Element Msg
+editSongLink ( songId, song ) =
     link [] { url = Url.Builder.absolute [ "edit", songId ] [], label = text song.name }
+
+
+deleteSongLink : SongId -> Element Msg
+deleteSongLink songId =
+    el
+    [ Events.onClick <| DeleteSongData songId
+    , htmlAttribute <| style "cursor" "pointer" ]
+    (text "X")
 
 
 stateIcon : ProcessingState -> String
@@ -68,7 +78,7 @@ viewSongDict model songDict =
                 , columns =
                     [ { header = songTableCell [ Font.bold ] <| text "Song"
                         , width = fill |> maximum 300
-                        , view = (linkToSong >> songTableCell [])
+                        , view = (editSongLink >> songTableCell [])
                         }
                     , { header = songTableCell [ Font.bold ] <| text "Artist"
                         , width = fill |> maximum 300
@@ -77,6 +87,10 @@ viewSongDict model songDict =
                     , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
                         , width = fill |> maximum 50
                         , view = (Tuple.second >> .processingState >> stateIcon >> text >> el [ centerX ] >> songTableCell [])
+                        }
+                    , { header = songTableCell [ centerX, Font.bold ] <| text "Delete"
+                        , width = fill |> maximum 50
+                        , view = (Tuple.first >> deleteSongLink >> el [ centerX ] >> songTableCell [])
                         }
                     ]
                 }

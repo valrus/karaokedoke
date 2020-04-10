@@ -30,7 +30,8 @@ type alias ProcessingEvent =
 
 type Msg
     = AddUploadedSongs (Result Http.Error SongUpload)
-    | DeleteSong SongId
+    | DeleteSongData SongId
+    | RemoveSong SongId (Result Http.Error ())
     | DragEnter
     | DragLeave
     | ProcessFiles File (List File)
@@ -57,8 +58,22 @@ update model msg songDict =
         AddUploadedSongs (Err songUploadError) ->
             updateSongDict model <| RemoteData.Failure <| songUploadError
 
-        DeleteSong songId ->
+        RemoveSong songId _ ->
             updateSongDict model <| RemoteData.map (Dict.remove songId) songDict
+
+        DeleteSongData songId ->
+            ( model
+            , songDict
+            , Http.request
+                { method = "DELETE"
+                , headers = []
+                , url = Url.Builder.absolute ["api", "songs", songId] []
+                , body = Http.emptyBody
+                , expect = Http.expectWhatever <| (RemoveSong songId)
+                , timeout = Nothing
+                , tracker = Nothing
+                }
+                )
 
         DragEnter ->
             ( { model | dragging = True }, songDict, Cmd.none )
