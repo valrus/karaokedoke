@@ -23,7 +23,7 @@ type alias Model =
 
 
 type alias ProcessingEvent =
-    { processingState : ProcessingState
+    { state : ProcessingState
     , songId : SongId
     }
 
@@ -83,7 +83,7 @@ update model msg songDict =
 
         HandleProcessingEvent (Ok processingEvent) ->
             updateSongDict model <| RemoteData.map
-                (Dict.update processingEvent.songId <| updateSongWithState processingEvent.processingState) songDict
+                (Dict.update processingEvent.songId <| updateSongWithState processingEvent.state) songDict
 
         HandleProcessingEvent (Err eventDecodeError) ->
             updateSongDict model songDict
@@ -135,7 +135,7 @@ makeProcessingEvent event task songId =
                     Failed <| "Invalid processing event: " ++ event
 
     in
-        { processingState = processingState, songId = songId }
+        { state = processingState, songId = songId }
 
 
 processingEventDecoder : D.Decoder ProcessingEvent

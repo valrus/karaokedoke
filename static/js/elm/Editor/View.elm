@@ -17,11 +17,11 @@ import Ports
 import RemoteData exposing (RemoteData(..), WebData)
 
 
-headerSection : Model -> Element Msg
-headerSection model =
+songHeader : Model -> Element Msg
+songHeader model =
     el
-        [ Font.size 36
-        , centerX
+        [ centerX
+        , Font.size 36
         ]
     <|
         text <|
@@ -68,13 +68,14 @@ waveform =
     el
         [ htmlAttribute <| id waveformContainerName
         , width fill
+        , height (px 60)
         , centerX
         ]
         Element.none
 
 
-waveformSection : Model -> Element Msg
-waveformSection model =
+songWaveform : Model -> Element Msg
+songWaveform model =
     column [ width fill, centerX ]
         [ waveform ]
 
@@ -142,19 +143,32 @@ viewEditor model =
         [ centerX
         , alignTop
         , width fill
-        , padding 40
+        , paddingEach { top = 130, right = 40, bottom = 40, left = 40 }
         , spacing 20
         ]
-        [ headerSection model
-        , waveformSection model
-        , lyricsSection model
+        [ lyricsSection model
+        ]
+
+
+header : Model -> Element Msg
+header model =
+    column
+        [ width fill
+        , alignTop
+        , padding 10
+        , spacing 10
+        , Background.color <| rgba 0.8 0.8 0.8 1.0
+        ]
+        [ songHeader model
+        , songWaveform model
         ]
 
 
 view : Model -> Html Msg
 view model =
     layout
-        [ inFront <| iconAttribution
+        [ inFront <| header model
+        , inFront <| iconAttribution
         ]
     <|
         viewEditor model
