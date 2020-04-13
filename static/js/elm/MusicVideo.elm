@@ -1,7 +1,6 @@
 module MusicVideo exposing (..)
 
 --
---
 
 import Browser exposing (UrlRequest(..), application)
 import Browser.Navigation as Nav
@@ -145,7 +144,7 @@ update msg model =
         ( ChangeUrl url, _ ) ->
             initCurrentPage
             ( { model | route = Route.parseUrl url }
-            , Ports.jsEditorDestroyWaveform ()
+            , Ports.jsDestroyWaveform ()
             )
 
         ( _, _ ) ->

@@ -7,7 +7,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
-import Helpers exposing (errorToString)
+import Helpers exposing (Milliseconds, errorToString)
 import Html exposing (Html)
 import Html.Attributes exposing (id, style)
 import Html.Events exposing (on)
@@ -80,21 +80,29 @@ songWaveform model =
         [ waveform ]
 
 
-lineElement : Timespan LyricLine -> Element Msg
-lineElement line =
+lyricsLineElement : Milliseconds -> Timespan LyricLine -> Element Msg
+lyricsLineElement playhead line =
     row [ spacing 5, padding 5 ] <| (List.map .token >> List.map text) line.tokens
 
 
-pageElement : Timespan LyricPage -> Element Msg
-pageElement page =
+lyricsPageElement : Milliseconds -> Timespan LyricPage -> Element Msg
+lyricsPageElement playhead page =
     column
-        [ centerX, alignTop, width fill, Background.color <| rgba 0.9 0.9 0.9 0.8 ]
+        [ centerX
+        , alignTop
+        , width fill
+        , Background.color <|
+            if pageIsBefore playhead page then
+                rgba 1.0 0.8 0.8 1.0
+            else
+                rgba 0.9 0.9 0.9 0.8
+        ]
     <|
-        List.map lineElement page.lines
+        List.map (lyricsLineElement playhead) page.lines
 
 
-lyricsElement : WebData LyricBook -> Element Msg
-lyricsElement lyricData =
+lyricsElement : Milliseconds -> WebData LyricBook -> Element Msg
+lyricsElement playhead lyricData =
     column [ centerX, alignTop, width fill, spacing 10 ] <|
         case lyricData of
             NotAsked ->
@@ -107,7 +115,7 @@ lyricsElement lyricData =
                 [ text <| errorToString e ]
 
             Success lyrics ->
-                List.map pageElement lyrics
+                List.map (lyricsPageElement playhead) lyrics
 
 
 lyricsSection : Model -> Element Msg
@@ -115,7 +123,8 @@ lyricsSection model =
     row
         [ centerX, alignTop ]
         [ snipStrip model
-        , lyricsElement model.lyrics ]
+        , lyricsElement model.playhead model.lyrics
+        ]
 
 
 iconAttribution : Element Msg

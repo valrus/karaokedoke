@@ -3,12 +3,12 @@ module Editor.State exposing (..)
 --
 
 import Debug exposing (log)
-import Helpers
+import Helpers exposing (Seconds, Milliseconds, seconds)
 import Http
 import Json.Decode as D
 import List exposing (filter)
 import Lyrics.Model exposing (LyricBook, lyricBookDecoder)
-import Ports
+import Editor.Ports as Ports
 import RemoteData exposing (RemoteData(..), WebData)
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Url.Builder
@@ -24,6 +24,7 @@ type alias Model =
     , lyrics : WebData LyricBook
     , waveform : WaveformResult
     , snipping : Bool
+    , playhead : Milliseconds
     }
 
 
@@ -35,6 +36,7 @@ type Msg
     | ClickedSnipStrip
     | Snipped
     | CanceledSnip
+    | SetPlayhead (Result D.Error Seconds)
 
 
 waveformContainerName : String
@@ -49,6 +51,7 @@ init songId =
       , lyrics = Loading
       , waveform = NotAsked
       , snipping = False
+      , playhead = 0
       }
     , Cmd.batch
         [ Http.get
@@ -67,6 +70,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Ports.gotWaveform (GotWaveform << D.decodeValue waveformInitResultDecoder)
+        , Ports.movePlayhead (SetPlayhead << D.decodeValue D.float)
         ]
 
 
@@ -94,7 +98,7 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         GotLyrics (Ok lyricBook) ->
-            ( { model | lyrics = Success lyricBook, waveform = Loading }
+            ( { model | lyrics = Success (log "lyrics" lyricBook), waveform = Loading }
             , Ports.jsEditorInitWaveform <|
                 { containerId = waveformContainerName
                 , songUrl = Url.Builder.absolute [ "api", "songs", model.songId ] []
@@ -129,3 +133,10 @@ update model msg =
 
         CanceledSnip ->
             ( { model | snipping = False }, Cmd.none )
+
+        SetPlayhead (Err error) ->
+            ( model, Cmd.none )
+
+        SetPlayhead (Ok positionInSeconds) ->
+            ( { model | playhead = (log "playhead" <| seconds positionInSeconds) }
+            , Cmd.none )

@@ -1,5 +1,6 @@
 module Lyrics.Model exposing (..)
 
+import Debug exposing (log)
 import Helpers exposing (Milliseconds)
 import Json.Decode as Decode
 import Json.Decode.Extra
@@ -75,9 +76,10 @@ lyricBefore t maybeLyric =
             lyric.begin < t
 
 
+-- Does this page _start_ before the given time?
 pageIsBefore : Milliseconds -> LyricPage -> Bool
 pageIsBefore t page =
-    List.head page.lines
+    List.head (log "page.lines" page.lines)
         |> Maybe.andThen (Just << .tokens)
         |> Maybe.andThen List.head
         |> lyricBefore t
@@ -86,7 +88,6 @@ pageIsBefore t page =
 pageAtTime : Milliseconds -> LyricBook -> Maybe LyricPage
 pageAtTime time book =
     List.head <| List.filter (not << pageIsBefore time) book
-
 
 
 -- {

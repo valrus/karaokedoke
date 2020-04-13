@@ -5,6 +5,11 @@ function setupRegions(regions) {
     regions.forEach(region => { wavesurfer.addRegion(region); console.log(region) });
 }
 
+function movePlayhead(time) {
+    console.log("movePlayhead in js to " + time);
+    app.ports.movePlayhead.send(time);
+}
+
 function initializeWavesurfer(app, args) {
     console.log("hit initializeWavesurfer in js with " + args.containerId + " and " + args.songUrl);
     wavesurfer = WaveSurfer.create({
@@ -19,6 +24,8 @@ function initializeWavesurfer(app, args) {
     wavesurfer.on('error', function(errorString) {
         app.ports.gotWaveform.send({ success: false, error: errorString });
     });
+    wavesurfer.on('seek', function(proportion) { movePlayhead(proportion * wavesurfer.getDuration()) });
+    wavesurfer.on('audioprocess', movePlayhead);
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
     wavesurfer.load(args.songUrl);
     return (wavesurfer !== 'undefined');

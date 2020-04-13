@@ -37,7 +37,7 @@
              app.ports.gotSizes.send(sizedLyricPage);
          });
 
-         app.ports.jsEditorDestroyWaveform.subscribe(function() {
+         app.ports.jsDestroyWaveform.subscribe(function() {
              console.log("hit destroyWaveform in js");
              destroyWavesurfer();
          });
