@@ -59,13 +59,34 @@ stateIcon state =
             "-"
 
         InProgress _ ->
-            "..."
+            "⋯"
 
         Complete ->
             ">"
 
         Failed err ->
             "x"
+
+
+playSongState : ( SongId, (Processed Song) ) -> Element Msg
+playSongState ( songId, song ) =
+    let
+        content =
+            case song.processingState of
+                NotStarted ->
+                    text "-"
+
+                InProgress _ ->
+                    text "⋯"
+
+                Complete ->
+                    text ">"
+
+                Failed err ->
+                    text "x"
+
+    in
+        el [ centerX ] content
 
 
 viewSongDict : Model -> SongDict -> Element Msg
@@ -86,7 +107,7 @@ viewSongDict model songDict =
                         }
                     , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
                         , width = fill |> maximum 50
-                        , view = (Tuple.second >> .processingState >> stateIcon >> text >> el [ centerX ] >> songTableCell [])
+                        , view = (playSongState >> songTableCell [])
                         }
                     , { header = songTableCell [ centerX, Font.bold ] <| text "Delete"
                         , width = fill |> maximum 50
@@ -103,13 +124,13 @@ viewSongDictData : Model -> WebData SongDict -> Element Msg
 viewSongDictData model songDictData =
     case songDictData of
         NotAsked ->
-            text "Initialising."
+            el [ centerX, centerY ] <| text "Initialising…"
 
         Loading ->
-            text "Loading."
+            el [ centerX, centerY ] <| text "Loading…"
 
         Failure err ->
-            text ("Error: " ++ errorToString err)
+            el [ centerX, centerY ] <| text ("Error: " ++ errorToString err)
 
         Success songDict ->
             viewSongDict model songDict
