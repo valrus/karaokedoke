@@ -70,14 +70,47 @@ waveform =
         , width fill
         , height (px 60)
         , centerX
+        , centerY
         ]
         Element.none
 
 
-songWaveform : Model -> Element Msg
-songWaveform model =
-    column [ width fill, centerX ]
-        [ waveform ]
+playingSymbol : Model -> String
+playingSymbol model =
+    if model.playing then "⏸️" else "▶️"
+
+
+playPauseButton : Model -> Element Msg
+playPauseButton model =
+    el
+        [ Font.size 56
+        , Events.onClick <| PlayPause model.playing
+        , centerY
+        , moveDown 5
+        , width shrink
+        , height shrink
+        , pointer
+        ]
+        (text <| playingSymbol model)
+
+
+songControls : Model -> Element Msg
+songControls model =
+    column
+        [ ]
+        [ playPauseButton model ]
+
+
+waveformSection : Model -> Element Msg
+waveformSection model =
+    row
+        [ width fill
+        , centerX
+        , centerY
+        , spacing 10
+        ]
+        [ songControls model
+        , waveform ]
 
 
 lyricsLineElement : Milliseconds -> Timespan LyricLine -> Element Msg
@@ -169,7 +202,7 @@ header model =
         , Background.color <| rgba 0.8 0.8 0.8 1.0
         ]
         [ songHeader model
-        , songWaveform model
+        , waveformSection model
         ]
 
 

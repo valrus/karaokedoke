@@ -24,7 +24,13 @@ port gotWaveform : (Json.Decode.Value -> msg) -> Sub msg
 port movePlayhead : (Json.Decode.Value -> msg) -> Sub msg
 
 
+port changedPlaystate : (Json.Decode.Value -> msg) -> Sub msg
+
+
 port jsEditorInitWaveform : { containerId : String, songUrl : String } -> Cmd msg
 
 
 port jsEditorCreateRegions : List WaveformRegion -> Cmd msg
+
+
+port jsEditorPlayPause : Bool -> Cmd msg

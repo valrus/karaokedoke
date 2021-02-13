@@ -6,8 +6,17 @@ function setupRegions(regions) {
 }
 
 function movePlayhead(time) {
-    console.log("movePlayhead in js to " + time);
     app.ports.movePlayhead.send(time);
+}
+
+function togglePlaying(currentlyPlaying) {
+    if (currentlyPlaying) {
+        wavesurfer.pause();
+    }
+    else {
+        wavesurfer.play();
+    }
+    app.ports.changedPlaystate.send(wavesurfer.isPlaying());
 }
 
 function initializeWavesurfer(app, args) {
@@ -26,7 +35,10 @@ function initializeWavesurfer(app, args) {
     });
     wavesurfer.on('seek', function(proportion) { movePlayhead(proportion * wavesurfer.getDuration()) });
     wavesurfer.on('audioprocess', movePlayhead);
+
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
+    app.ports.jsEditorPlayPause.subscribe(togglePlaying);
+
     wavesurfer.load(args.songUrl);
     return (wavesurfer !== 'undefined');
 }

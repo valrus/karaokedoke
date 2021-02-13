@@ -79,7 +79,7 @@ lyricBefore t maybeLyric =
 -- Does this page _start_ before the given time?
 pageIsBefore : Milliseconds -> LyricPage -> Bool
 pageIsBefore t page =
-    List.head (log "page.lines" page.lines)
+    List.head page.lines
         |> Maybe.andThen (Just << .tokens)
         |> Maybe.andThen List.head
         |> lyricBefore t

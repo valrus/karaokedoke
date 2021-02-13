@@ -25,6 +25,7 @@ type alias Model =
     , waveform : WaveformResult
     , snipping : Bool
     , playhead : Milliseconds
+    , playing : Bool
     }
 
 
@@ -37,6 +38,8 @@ type Msg
     | Snipped
     | CanceledSnip
     | SetPlayhead (Result D.Error Seconds)
+    | PlayPause Bool
+    | ChangedPlaystate (Result D.Error Bool)
 
 
 waveformContainerName : String
@@ -52,6 +55,7 @@ init songId =
       , waveform = NotAsked
       , snipping = False
       , playhead = 0
+      , playing = False
       }
     , Cmd.batch
         [ Http.get
@@ -71,6 +75,7 @@ subscriptions model =
     Sub.batch
         [ Ports.gotWaveform (GotWaveform << D.decodeValue waveformInitResultDecoder)
         , Ports.movePlayhead (SetPlayhead << D.decodeValue D.float)
+        , Ports.changedPlaystate (ChangedPlaystate << D.decodeValue D.bool)
         ]
 
 
@@ -98,7 +103,7 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         GotLyrics (Ok lyricBook) ->
-            ( { model | lyrics = Success (log "lyrics" lyricBook), waveform = Loading }
+            ( { model | lyrics = Success lyricBook, waveform = Loading }
             , Ports.jsEditorInitWaveform <|
                 { containerId = waveformContainerName
                 , songUrl = Url.Builder.absolute [ "api", "songs", model.songId ] []
@@ -138,5 +143,14 @@ update model msg =
             ( model, Cmd.none )
 
         SetPlayhead (Ok positionInSeconds) ->
-            ( { model | playhead = (log "playhead" <| seconds positionInSeconds) }
+            ( { model | playhead = seconds positionInSeconds }
             , Cmd.none )
+
+        PlayPause playing->
+            ( model, Ports.jsEditorPlayPause playing )
+
+        ChangedPlaystate (Err error) ->
+            ( model, Cmd.none )
+
+        ChangedPlaystate (Ok playing) ->
+            ( { model | playing = playing }, Cmd.none )
