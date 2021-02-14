@@ -1,4 +1,4 @@
-module MusicVideo exposing (..)
+module Karaokedoke exposing (..)
 
 --
 
@@ -14,7 +14,7 @@ import Helpers exposing (Milliseconds)
 import Html exposing (Html)
 import Http
 import Lyrics.Model exposing (Lyric, LyricBook, LyricLine)
-import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
+import Lyrics.Style exposing (svgScratchId)
 import Player.State as PlayerState
 import Player.View as PlayerView
 import Ports exposing (..)
@@ -64,10 +64,6 @@ init flags url key =
           }
         , Cmd.none
         )
-
-
-
--- Ports.jsLoadFonts [ { name = lyricBaseFontName, path = lyricBaseFontTTF } ]
 
 
 view : Model -> Browser.Document Msg
