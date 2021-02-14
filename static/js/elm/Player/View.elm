@@ -173,7 +173,7 @@ view model =
     Html.div
         [ HtmlAttr.style "width" "100%"
         , HtmlAttr.style "height" "100%"
-        , Html.Events.onClick TogglePlayback
+        , Html.Events.onMouseUp TogglePlayback
         ]
         [ scratch model
         , AudioPlayer.view model

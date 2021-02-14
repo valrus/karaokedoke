@@ -8,7 +8,7 @@ import Helpers exposing (Milliseconds, Seconds, inSeconds)
 
 type alias Model =
     { duration : Milliseconds
-    , playhead : Seconds
+    , playhead : Milliseconds
     , cursorX : Maybe Float
     , dragging : Bool
     , hovering : Bool
@@ -34,9 +34,7 @@ setDuration duration model =
 
 setPlayhead : Milliseconds -> Model -> Model
 setPlayhead playhead model =
-    { model
-        | playhead = (inSeconds playhead)
-    }
+    { model | playhead = playhead }
 
 
 moveCursor : Float -> Model -> Model

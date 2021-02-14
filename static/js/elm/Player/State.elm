@@ -92,7 +92,7 @@ animateTime model delta override =
 
         Nothing ->
             if model.playing == Playing then
-                seconds model.scrubber.playhead + delta
+                model.scrubber.playhead + delta
 
             else
                 0
@@ -202,14 +202,14 @@ updateModel msg delta model =
                     unwrap Nothing (pageAtTime newTime) model.lyrics
             in
             ( { model
-                | scrubber = Scrubber.setPlayhead newTime model.scrubber
+                | scrubber = Scrubber.setPlayhead (log "Animate" newTime) model.scrubber
               }
             , getNewPage model.page newPage
             )
 
         SyncPlayhead playheadTime ->
             ( { model
-                | scrubber = Scrubber.setPlayhead playheadTime model.scrubber
+                | scrubber = Scrubber.setPlayhead (log "SyncPlayhead" playheadTime) model.scrubber
               }
             , Cmd.none
             )
@@ -294,12 +294,18 @@ update model msg =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ onAnimationFrameDelta <| animateMsg model.scrubber
-        , Ports.loadedFonts (Immediately << GotFonts)
+    Sub.batch <|
+        [ Ports.loadedFonts (Immediately << GotFonts)
         , Ports.playState (Immediately << SetPlayState << toPlayState)
+        , Ports.playhead (Immediately << SyncPlayhead)
         , Ports.gotSizes (Immediately << SetPageSizes)
         ]
+            ++ (if model.playing == Playing then
+                    [ onAnimationFrameDelta <| animateMsg model.scrubber ]
+
+                else
+                    []
+               )
 
 
 animateMsg : Scrubber.Model -> (Float -> Msg)

@@ -6,7 +6,7 @@ import Debug exposing (log)
 import Helpers exposing (Milliseconds, Seconds, Proportion, inSeconds, traceDecoder)
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
-import Html.Events exposing (on, onMouseDown, onMouseLeave, onMouseOver, onMouseUp)
+import Html.Events exposing (on, onMouseDown, onMouseLeave, onMouseOver, onMouseUp, stopPropagationOn)
 import Html.Lazy exposing (lazy2)
 import Json.Decode as Decode
 import Lyrics.Model exposing (Lyric, LyricBook, LyricLine, LyricPage, pageTokenList)
@@ -146,6 +146,11 @@ cursorMark position =
             Html.div [] []
 
 
+alwaysPreventDefault : msg -> ( msg, Bool )
+alwaysPreventDefault msg =
+    ( msg, True )
+
+
 view : Model -> LyricBook -> Html Msg
 view model lyrics =
     Html.div
@@ -165,7 +170,7 @@ view model lyrics =
             , HtmlAttr.style "height" "100%"
             , on "mousedown" (mouseScrub True)
             , on "mousemove" (mouseScrub model.dragging)
-            , on "mouseup" (mouseSeek model.duration)
+            , stopPropagationOn "mouseup" (Decode.map alwaysPreventDefault <| mouseSeek model.duration)
             , onMouseLeave (Immediately LeaveScrubber)
             ]
             [ lazy2 eventMarks model.duration lyrics
