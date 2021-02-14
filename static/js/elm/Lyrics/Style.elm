@@ -1,13 +1,20 @@
 module Lyrics.Style exposing (..)
+import Url.Builder
 
 
-lyricBaseFontTTF : String
-lyricBaseFontTTF =
-    "static/css/fonts/leaguegothic/leaguegothic-regular-webfont.ttf"
+type alias FontData =
+    { name : String
+    , path : String
+    }
 
 
-lyricBaseFontName : String
-lyricBaseFontName =
+leagueGothicFontTTF : String
+leagueGothicFontTTF =
+    Url.Builder.absolute [ "fonts", "leaguegothic", "leaguegothic-regular-webfont.ttf" ] []
+
+
+leagueGothicFontName : String
+leagueGothicFontName =
     "LeagueGothic"
 
 
@@ -18,3 +25,10 @@ lyricBaseFontName =
 svgScratchId : String
 svgScratchId =
     "scratch"
+
+
+leagueGothicFontData : FontData
+leagueGothicFontData =
+    { name = leagueGothicFontName
+    , path = leagueGothicFontTTF
+    }

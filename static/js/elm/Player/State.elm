@@ -6,10 +6,11 @@ import Browser.Events exposing (onAnimationFrameDelta)
 import Debug exposing (log)
 import Helpers exposing (Milliseconds, inSeconds, seconds)
 import Http
+import Json.Decode as D
 import Lyrics.Model exposing (..)
-import Lyrics.Style exposing (lyricBaseFontName, svgScratchId)
+import Lyrics.Style exposing (leagueGothicFontName, leagueGothicFontData, svgScratchId)
 import Ports
-import RemoteData exposing (RemoteData(..), WebData)
+import RemoteData exposing (RemoteData(..), WebData, unwrap)
 import Scrubber.State as Scrubber
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Task
@@ -25,26 +26,39 @@ type PlayState
 
 
 type alias Model =
-    { song : WebData (Prepared Song)
+    { songId : SongId
+    , song : WebData (Prepared Song)
+    , songUrl : WebData String
     , page : Maybe SizedLyricPage
     , playing : PlayState
-    , lyrics : LyricBook
+    , lyrics : WebData LyricBook
     , scrubber : Scrubber.Model
+    , fontsLoaded : Bool
     }
 
 
 init : SongId -> ( Model, Cmd Msg )
 init songId =
-    ( { song = Loading
+    ( { songId = songId
+      , song = Loading
+      , songUrl = Loading
       , page = Nothing
       , playing = Paused
-      , lyrics = []
+      , lyrics = Loading
       , scrubber = Scrubber.init
+      , fontsLoaded = False
       }
-    , Http.get
-        { url = Url.Builder.absolute [ "api", "song_data", songId ] []
-        , expect = Http.expectJson (GotSong >> Immediately) songDecoder
-        }
+    , Cmd.batch
+        [ Http.get
+            { url = Url.Builder.absolute [ "lyrics", songId ] []
+            , expect = Http.expectJson (GotLyrics >> Immediately) lyricBookDecoder
+            }
+        , Http.get
+            { url = Url.Builder.absolute [ "api", "song_data", songId ] []
+            , expect = Http.expectJson (GotSong >> Immediately) songDecoder
+            }
+        , Ports.jsLoadFonts [ leagueGothicFontData ]
+        ]
     )
 
 
@@ -57,6 +71,8 @@ type Msg
 
 type ModelMsg
     = GotSong (Result Http.Error (Prepared Song))
+    | GotLyrics (Result Http.Error LyricBook)
+    | GotFonts Bool
     | SetPageSizes (Maybe SizedLyricPage)
     | SetDuration Milliseconds
     | SetPlayState PlayState
@@ -116,7 +132,7 @@ getNewPage prevPage nextPage =
             Ports.jsGetSizes
                 { lyrics = newPage
                 , scratchId = svgScratchId
-                , fontName = lyricBaseFontName
+                , fontName = leagueGothicFontName
                 }
 
         ( Just oldPage, Just newPage ) ->
@@ -127,7 +143,7 @@ getNewPage prevPage nextPage =
                 Ports.jsGetSizes
                     { lyrics = newPage
                     , scratchId = svgScratchId
-                    , fontName = lyricBaseFontName
+                    , fontName = leagueGothicFontName
                     }
 
 
@@ -139,6 +155,15 @@ updateModel msg delta model =
 
         GotSong (Err error) ->
             ( { model | song = Failure error }, Cmd.none )
+
+        GotLyrics (Ok lyrics) ->
+            ( { model | lyrics = Success lyrics }, Cmd.none )
+
+        GotLyrics (Err error) ->
+            ( { model | song = Failure error }, Cmd.none )
+
+        GotFonts fontsLoaded ->
+            ( { model | fontsLoaded = fontsLoaded }, Cmd.none )
 
         SetPageSizes result ->
             case result of
@@ -174,7 +199,7 @@ updateModel msg delta model =
                     animateTime model delta timeOverride
 
                 newPage =
-                    pageAtTime newTime model.lyrics
+                    unwrap Nothing (pageAtTime newTime) model.lyrics
             in
             ( { model
                 | scrubber = Scrubber.setPlayhead newTime model.scrubber
@@ -271,7 +296,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ onAnimationFrameDelta <| animateMsg model.scrubber
-        , Ports.loadedFonts (Immediately << SetPlayState << playStateOnLoad)
+        , Ports.loadedFonts (Immediately << GotFonts)
         , Ports.playState (Immediately << SetPlayState << toPlayState)
         , Ports.gotSizes (Immediately << SetPageSizes)
         ]

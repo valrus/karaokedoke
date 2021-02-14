@@ -25,7 +25,7 @@ function extractDefinedProperty(arr, prop) {
 }
 
 function getSizedLyricPage(pageLyrics, scratchSvgId, font) {
-    console.log(font.unitsPerEm);
+    // console.log(font.unitsPerEm);
     var testSvg = document.getElementById(scratchSvgId);
     var sized_page = [];
     var this_line = {};

@@ -9,8 +9,9 @@ import Html.Attributes as HtmlAttr
 import Html.Events
 import List.Extra exposing (scanl1)
 import Lyrics.Model exposing (..)
-import Lyrics.Style exposing (lyricBaseFontName, lyricBaseFontTTF, svgScratchId)
+import Lyrics.Style exposing (leagueGothicFontName, svgScratchId)
 import Player.State exposing (..)
+import RemoteData exposing (RemoteData(..))
 import Scrubber.View
 import String
 import Svg exposing (Svg)
@@ -117,7 +118,7 @@ viewPage time mpage =
 
         Just page ->
             Svg.svg
-                [ SvgAttr.fontFamily lyricBaseFontName
+                [ SvgAttr.fontFamily leagueGothicFontName
                 , SvgAttr.width "100%"
                 , SvgAttr.height "100%"
                 ]
@@ -127,6 +128,15 @@ viewPage time mpage =
 
 footer : Model -> Html Msg
 footer model =
+    let
+        footerContent =
+            case model.lyrics of
+                Success lyricBook ->
+                    Scrubber.View.view model.scrubber lyricBook
+
+                _ ->
+                    Html.text "No lyrics"
+    in
     Html.footer
         [ HtmlAttr.style "position" "fixed"
         , HtmlAttr.style "bottom" "0"
@@ -134,7 +144,7 @@ footer model =
         , HtmlAttr.style "width" "100%"
         , HtmlAttr.style "height" (String.fromInt Scrubber.View.scrubberHeight ++ "px")
         ]
-        [ Scrubber.View.view model.scrubber model.lyrics
+        [ footerContent
         ]
 
 
@@ -151,7 +161,7 @@ scratch model =
             , SvgAttr.visibility "hidden"
             , SvgAttr.width "1024px"
             , SvgAttr.height "768px"
-            , SvgAttr.fontFamily lyricBaseFontName
+            , SvgAttr.fontFamily leagueGothicFontName
             , SvgAttr.fontSize "512px"
             ]
             []

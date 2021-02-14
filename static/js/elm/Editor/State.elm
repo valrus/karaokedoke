@@ -59,7 +59,7 @@ init songId =
       }
     , Cmd.batch
         [ Http.get
-            { url = Url.Builder.absolute [ "api", "lyrics", songId ] []
+            { url = Url.Builder.absolute [ "lyrics", songId ] []
             , expect = Http.expectJson GotLyrics lyricBookDecoder
             }
         , Http.get
