@@ -84,7 +84,6 @@
          });
 
          app.ports.jsSetPlayback.subscribe(function (play) {
-             console.log('toggle');
              var audio = document.getElementById('audio-player');
              var playing = false;
              if (play) {

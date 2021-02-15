@@ -115,7 +115,7 @@ waveformSection model =
 
 lyricsLineElement : Milliseconds -> Timespan LyricLine -> Element Msg
 lyricsLineElement playhead line =
-    row [ spacing 5, padding 5 ] <| (List.map .token >> List.map text) line.tokens
+    row [ spacing 5, padding 5 ] <| (List.map .text >> List.map text) line.tokens
 
 
 lyricsPageElement : Milliseconds -> Timespan LyricPage -> Element Msg

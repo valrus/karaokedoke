@@ -13,7 +13,7 @@ port loadedFonts : (Bool -> msg) -> Sub msg
 port playState : (Bool -> msg) -> Sub msg
 
 
-port gotSizes : (Maybe SizedLyricPage -> msg) -> Sub msg
+port gotSizes : (Json.Decode.Value -> msg) -> Sub msg
 
 
 port playhead : (Float -> msg) -> Sub msg

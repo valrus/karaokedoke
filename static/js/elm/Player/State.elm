@@ -5,10 +5,10 @@ module Player.State exposing (..)
 import Browser.Events exposing (onAnimationFrameDelta)
 import Debug exposing (log)
 import Helpers exposing (Milliseconds, inSeconds, seconds)
-import Http
+import Http exposing (Error(..))
 import Json.Decode as D
 import Lyrics.Model exposing (..)
-import Lyrics.Style exposing (leagueGothicFontName, leagueGothicFontData, svgScratchId)
+import Lyrics.Style exposing (leagueGothicFontData, leagueGothicFontName, svgScratchId)
 import Ports
 import RemoteData exposing (RemoteData(..), WebData, unwrap)
 import Scrubber.State as Scrubber
@@ -73,7 +73,7 @@ type ModelMsg
     = GotSong (Result Http.Error (Prepared Song))
     | GotLyrics (Result Http.Error LyricBook)
     | GotFonts Bool
-    | SetPageSizes (Maybe SizedLyricPage)
+    | SetPageSizes (Result D.Error SizedLyricPage)
     | SetDuration Milliseconds
     | SetPlayState PlayState
     | SyncPlayhead Milliseconds
@@ -124,7 +124,7 @@ pagesMatch sizedPage otherPage =
 
 getNewPage : Maybe SizedLyricPage -> Maybe LyricPage -> Cmd Msg
 getNewPage prevPage nextPage =
-    case ( prevPage, nextPage ) of
+    case (log "getNewPage args" ( prevPage, nextPage )) of
         ( _, Nothing ) ->
             Cmd.none
 
@@ -165,31 +165,23 @@ updateModel msg delta model =
         GotFonts fontsLoaded ->
             ( { model | fontsLoaded = fontsLoaded }, Cmd.none )
 
-        SetPageSizes result ->
-            case result of
-                Nothing ->
-                    ( model
-                    , Cmd.none
-                    )
+        SetPageSizes (Err error) ->
+            ( { model | song = Failure <| BadBody <| D.errorToString error }
+            , Cmd.none
+            )
 
-                Just sizedLyricPage ->
-                    ( { model
-                        | page = Just sizedLyricPage
-                      }
-                    , Cmd.none
-                    )
+        SetPageSizes (Ok result) ->
+            ( { model | page = Just (log "SetPageSizes result" result) }
+            , Cmd.none
+            )
 
         SetDuration time ->
-            ( { model
-                | scrubber = Scrubber.setDuration time model.scrubber
-              }
+            ( { model | scrubber = Scrubber.setDuration time model.scrubber }
             , Cmd.none
             )
 
         SetPlayState playing ->
-            ( { model
-                | playing = log "SetPlayState" playing
-              }
+            ( { model | playing = log "SetPlayState" playing }
             , Cmd.none
             )
 
@@ -201,9 +193,7 @@ updateModel msg delta model =
                 newPage =
                     unwrap Nothing (pageAtTime newTime) model.lyrics
             in
-            ( { model
-                | scrubber = Scrubber.setPlayhead (log "Animate" newTime) model.scrubber
-              }
+            ( { model | scrubber = Scrubber.setPlayhead newTime model.scrubber }
             , getNewPage model.page newPage
             )
 
@@ -298,7 +288,7 @@ subscriptions model =
         [ Ports.loadedFonts (Immediately << GotFonts)
         , Ports.playState (Immediately << SetPlayState << toPlayState)
         , Ports.playhead (Immediately << SyncPlayhead)
-        , Ports.gotSizes (Immediately << SetPageSizes)
+        , Ports.gotSizes (Immediately << SetPageSizes << D.decodeValue sizedLyricPageDecoder)
         ]
             ++ (if model.playing == Playing then
                     [ onAnimationFrameDelta <| animateMsg model.scrubber ]

@@ -59,9 +59,11 @@ mouseSeek duration =
     Decode.map (proportionInMilliseconds duration >> SetPlayhead) decodeClickXProportion
 
 
-timeAsPercent : Milliseconds -> Milliseconds -> Float
-timeAsPercent duration position =
-    (100 * position) / duration
+-- Going from the end is a little better since the aligner
+-- tends to include all the silence preceding a token in its "start" time
+percentFromEnd : Milliseconds -> Milliseconds -> Float
+percentFromEnd duration position =
+    100 - ((100 * position) / duration)
 
 
 lyricMark : Milliseconds -> Int -> Int -> Lyric -> Html Msg
@@ -75,14 +77,14 @@ lyricMark duration tokenCount index lyric =
     in
     Html.div
         [ HtmlAttr.style "position" "absolute"
-        , HtmlAttr.style "left" ((String.fromFloat <| timeAsPercent duration lyric.begin) ++ "%")
+        , HtmlAttr.style "right" ((String.fromFloat <| percentFromEnd duration lyric.end) ++ "%")
         , HtmlAttr.style "top" ((String.fromInt <| (index * (markHeight + 1)) + 4) ++ "px")
         , HtmlAttr.style "width" "5px"
         , HtmlAttr.style "height" ((String.fromInt <| markHeight) ++ "px")
         , HtmlAttr.style "display" "block"
         , HtmlAttr.style "overflow" "auto"
         , HtmlAttr.style "background-color" "#a00"
-        , HtmlAttr.title lyric.token
+        , HtmlAttr.title lyric.text
         , onMouseUp (SetPlayhead <| lyric.begin)
         ]
         []

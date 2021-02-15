@@ -27,38 +27,30 @@ function extractDefinedProperty(arr, prop) {
 function getSizedLyricPage(pageLyrics, scratchSvgId, font) {
     // console.log(font.unitsPerEm);
     var testSvg = document.getElementById(scratchSvgId);
-    var sized_page = [];
+    var sized_lyric_page = { content: [], size: { height: 0, width: 0 } };
     var this_line = {};
     var this_token = {};
     var line_text = '';
-    var page_size = {height: 0, width: 0};
-    var line_size = {height: 0, width: 0};
-    var token_size = {height: 0, width: 0};
-    for (var line_index = 0; line_index < pageLyrics.length; line_index++) {
-        sized_line = [];
-        this_line = pageLyrics[line_index];
+    var line_size = { height: 0, width: 0 };
+    for (var line_index = 0; line_index < pageLyrics.lines.length; line_index++) {
+        this_line = pageLyrics.lines[line_index];
         line_text = '';
         yMin = yMax = 0;
-        for (var token_index = 0; token_index < this_line.length; token_index++) {
-            this_token = this_line[token_index];
+        for (var token_index = 0; token_index < this_line.tokens.length; token_index++) {
+            this_token = this_line.tokens[token_index];
             line_text += this_token.text;
-            sized_line.push(this_token);
         }
         glyphs = font.stringToGlyphs(line_text);
-        console.log(glyphs);
         yMin = Math.min.apply(null, extractDefinedProperty(glyphs, 'yMin'));
         yMax = Math.max.apply(null, extractDefinedProperty(glyphs, 'yMax'));
         line_size = getTokenBBox(testSvg, line_text);
-        sized_page.push({
-            content: sized_line,
+        sized_lyric_page.content.push({
+            content: this_line,
             width: line_size.width,
-            y: {min: yMin * 512 / font.unitsPerEm, max: yMax * 512 / font.unitsPerEm},
+            yRange: { min: yMin * 512 / font.unitsPerEm, max: yMax * 512 / font.unitsPerEm },
         });
-        page_size.height = page_size.height + line_size.height;
-        page_size.width = Math.max(page_size.width, line_size.width);
+        sized_lyric_page.size.height = sized_lyric_page.size.height + line_size.height;
+        sized_lyric_page.size.width = Math.max(sized_lyric_page.size.width, line_size.width);
     }
-    return {
-        content: sized_page,
-        size: page_size
-    };
+    return sized_lyric_page;
 }

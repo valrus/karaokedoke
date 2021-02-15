@@ -2,6 +2,7 @@ module Player.View exposing (view)
 
 --
 
+import Debug exposing (log)
 import AudioPlayer
 import Helpers exposing (Milliseconds, seconds)
 import Html exposing (Html)
@@ -21,7 +22,7 @@ import Svg.Attributes as SvgAttr
 type alias VerticalLine =
     { content : Svg Msg
     , fontSize : Float
-    , height : Height
+    , yRange : Range
     , y : Float
     }
 
@@ -55,22 +56,22 @@ lineWithHeight time line =
     in
     { content =
         List.filter (Just >> lyricBefore time) line.content.tokens
-            |> List.map .token
+            |> List.map .text
             |> String.join ""
             |> Svg.text
     , fontSize = fontSizeToFill 1024.0 line.width
-    , height =
-        { min = factor * line.y.min
-        , max = factor * line.y.max
+    , yRange =
+        { min = factor * line.yRange.min
+        , max = factor * line.yRange.max
         }
-    , y = factor * line.y.max
+    , y = factor * line.yRange.max
     }
 
 
 accumulateHeights : VerticalLine -> VerticalLine -> VerticalLine
 accumulateHeights this prev =
     { this
-        | y = prev.y + (this.height.max - prev.height.min)
+        | y = prev.y + (this.yRange.max - prev.yRange.min)
     }
 
 
@@ -98,7 +99,7 @@ lyricToSvg : Lyric -> Svg Msg
 lyricToSvg lyric =
     Svg.g []
         [ Svg.text_ []
-            [ Svg.text lyric.token ]
+            [ Svg.text lyric.text ]
         ]
 
 
@@ -111,8 +112,8 @@ computePage time page =
 
 
 viewPage : Milliseconds -> Maybe SizedLyricPage -> Html Msg
-viewPage time mpage =
-    case mpage of
+viewPage time maybePage =
+    case (log "maybePage" maybePage) of
         Nothing ->
             Svg.svg [] []
 
@@ -182,7 +183,7 @@ view model =
             , HtmlAttr.style "margin" "auto auto"
             , HtmlAttr.style "width" "1024px"
             ]
-            [ viewPage (seconds model.scrubber.playhead) model.page
+            [ viewPage model.scrubber.playhead model.page
             ]
         , footer model
         ]
