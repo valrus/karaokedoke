@@ -2,13 +2,13 @@ module Player.View exposing (view)
 
 --
 
-import Debug exposing (log)
 import AudioPlayer
+import Debug exposing (log)
 import Helpers exposing (Milliseconds, seconds)
 import Html exposing (Html)
 import Html.Attributes as HtmlAttr
 import Html.Events
-import List.Extra exposing (scanl1)
+import List.Extra exposing (groupWhile, scanl1)
 import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (leagueGothicFontName, svgScratchId)
 import Player.State exposing (..)
@@ -21,6 +21,7 @@ import Svg.Attributes as SvgAttr
 
 type alias VerticalLine =
     { content : Svg Msg
+    , begin : Milliseconds
     , fontSize : Float
     , yRange : Range
     , y : Float
@@ -55,10 +56,12 @@ lineWithHeight time line =
             fontScale 1024.0 line.width
     in
     { content =
-        List.filter (Just >> lyricBefore time) line.content.tokens
+        -- List.filter (Just >> lyricBefore time) line.content.tokens
+        line.content.tokens
             |> List.map .text
             |> String.join " "
             |> Svg.text
+    , begin = line.content.begin
     , fontSize = fontSizeToFill 1024.0 line.width
     , yRange =
         { min = factor * line.yRange.min
@@ -70,8 +73,17 @@ lineWithHeight time line =
 
 accumulateHeights : VerticalLine -> VerticalLine -> VerticalLine
 accumulateHeights this prev =
+    let
+        newY =
+            prev.y + (this.yRange.max - prev.yRange.min)
+    in
     { this
-        | y = prev.y + (this.yRange.max - prev.yRange.min)
+        | y =
+            if newY > 800 then
+                this.yRange.max
+
+            else
+                newY
     }
 
 
@@ -103,17 +115,32 @@ lyricToSvg lyric =
         ]
 
 
+autoSamePage : VerticalLine -> VerticalLine -> Bool
+autoSamePage firstLine secondLine =
+    firstLine.y < secondLine.y
+
+
+joinNonemptyList : Maybe ( a, List a ) -> List a
+joinNonemptyList maybeNonemptyList =
+    Maybe.withDefault [] <| Maybe.map (\( first, rest ) -> first :: rest) maybeNonemptyList
+
+
 computePage : Milliseconds -> SizedLyricPage -> List (Svg Msg)
 computePage time page =
     List.filter (lineBefore time) page.content
         |> List.map (lineWithHeight time)
         |> scanl1 accumulateHeights
+        |> groupWhile autoSamePage
+        |> List.filter (\line -> .begin (Tuple.first line) < time)
+        |> List.reverse
+        |> List.head
+        |> joinNonemptyList
         |> List.map lineToSvg
 
 
 viewPage : Milliseconds -> Maybe SizedLyricPage -> Html Msg
 viewPage time maybePage =
-    case (log "maybePage" maybePage) of
+    case maybePage of
         Nothing ->
             Svg.svg [] []
 

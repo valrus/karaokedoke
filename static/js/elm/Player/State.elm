@@ -124,7 +124,7 @@ pagesMatch sizedPage otherPage =
 
 getNewPage : Maybe SizedLyricPage -> Maybe LyricPage -> Cmd Msg
 getNewPage prevPage nextPage =
-    case (log "getNewPage args" ( prevPage, nextPage )) of
+    case ( prevPage, nextPage ) of
         ( _, Nothing ) ->
             Cmd.none
 
