@@ -57,7 +57,7 @@ lineWithHeight time line =
     { content =
         List.filter (Just >> lyricBefore time) line.content.tokens
             |> List.map .text
-            |> String.join ""
+            |> String.join " "
             |> Svg.text
     , fontSize = fontSizeToFill 1024.0 line.width
     , yRange =

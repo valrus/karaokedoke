@@ -38,6 +38,7 @@ function getSizedLyricPage(pageLyrics, scratchSvgId, font) {
         yMin = yMax = 0;
         for (var token_index = 0; token_index < this_line.tokens.length; token_index++) {
             this_token = this_line.tokens[token_index];
+            line_text += " ";
             line_text += this_token.text;
         }
         glyphs = font.stringToGlyphs(line_text);
