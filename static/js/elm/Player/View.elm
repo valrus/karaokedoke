@@ -207,7 +207,7 @@ view model =
         , AudioPlayer.view model
         , Html.div
             [ HtmlAttr.width 1024
-            , HtmlAttr.style "margin" "auto auto"
+            , HtmlAttr.style "margin" "100px auto"
             , HtmlAttr.style "width" "1024px"
             ]
             [ viewPage model.scrubber.playhead model.page
