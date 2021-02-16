@@ -167,7 +167,7 @@ view model lyrics =
         , Html.div
             [ HtmlAttr.style "position" "absolute"
             , HtmlAttr.style "bottom" "0"
-            , HtmlAttr.style "background-color" "transparent"
+            , HtmlAttr.style "background-color" "rgba(0, 0, 0, 0.4)"
             , HtmlAttr.style "width" "100%"
             , HtmlAttr.style "height" "100%"
             , on "mousedown" (mouseScrub True)
