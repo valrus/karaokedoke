@@ -3,12 +3,12 @@ module Editor.State exposing (..)
 --
 
 import Debug exposing (log)
-import Helpers exposing (Seconds, Milliseconds, seconds)
+import Editor.Ports as Ports
+import Helpers exposing (Milliseconds, Seconds, seconds)
 import Http
 import Json.Decode as D
 import List exposing (filter)
-import Lyrics.Model exposing (LyricBook, lyricBookDecoder)
-import Editor.Ports as Ports
+import Lyrics.Model exposing (LyricBook, allLines, lyricBookDecoder)
 import RemoteData exposing (RemoteData(..), WebData)
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Url.Builder
@@ -96,7 +96,14 @@ waveformInitResultDecoder =
 
 makeRegions : LyricBook -> List Ports.WaveformRegion
 makeRegions lyrics =
-    List.map (\page -> { start = Helpers.inSeconds page.begin, end = Helpers.inSeconds page.end }) lyrics
+    List.map
+        (\line ->
+            { id = line.id
+            , start = Helpers.inSeconds line.begin
+            }
+        )
+    <|
+        allLines lyrics
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -144,9 +151,10 @@ update model msg =
 
         SetPlayhead (Ok positionInSeconds) ->
             ( { model | playhead = seconds positionInSeconds }
-            , Cmd.none )
+            , Cmd.none
+            )
 
-        PlayPause playing->
+        PlayPause playing ->
             ( model, Ports.jsEditorPlayPause playing )
 
         ChangedPlaystate (Err error) ->

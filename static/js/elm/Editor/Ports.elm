@@ -13,8 +13,8 @@ import Json.Decode
 
 
 type alias WaveformRegion =
-    { start : Float
-    , end : Float
+    { id : String
+    , start : Float
     }
 
 

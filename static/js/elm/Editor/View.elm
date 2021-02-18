@@ -113,25 +113,36 @@ waveformSection model =
         , waveform ]
 
 
-lyricsLineElement : Milliseconds -> Timespan LyricLine -> Element Msg
-lyricsLineElement playhead line =
-    row [ spacing 5, padding 5 ] <| (List.map .text >> List.map text) line.tokens
+lyricsLineElement : Milliseconds -> Color -> Timespan LyricLine -> Element Msg
+lyricsLineElement playhead baseBackgroundColor line =
+    row [ spacing 5
+        , padding 5
+        , Background.color <|
+            if line.begin < playhead then
+                rgba 0.6 0.6 1.0 0.8
+            else
+                baseBackgroundColor
+        ]
+        <|
+        (List.map .text >> List.map text) line.tokens
 
 
 lyricsPageElement : Milliseconds -> Timespan LyricPage -> Element Msg
 lyricsPageElement playhead page =
+    let pageBackground =
+            if page.begin < playhead then
+                rgba 1.0 0.8 0.8 1.0
+            else
+                rgba 0.9 0.9 0.9 0.8
+                    in
     column
         [ centerX
         , alignTop
         , width fill
-        , Background.color <|
-            if pageIsBefore playhead page then
-                rgba 1.0 0.8 0.8 1.0
-            else
-                rgba 0.9 0.9 0.9 0.8
+        , Background.color pageBackground
         ]
     <|
-        List.map (lyricsLineElement playhead) page.lines
+        List.map (lyricsLineElement playhead pageBackground) page.lines
 
 
 lyricsElement : Milliseconds -> WebData LyricBook -> Element Msg

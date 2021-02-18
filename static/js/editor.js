@@ -2,7 +2,13 @@ var wavesurfer;
 
 function setupRegions(regions) {
     console.log('in jsEditorCreateRegions');
-    regions.forEach(region => { wavesurfer.addRegion(region); console.log(region) });
+    regions.forEach(region => {
+        region.resize = false;
+        region.color = "rgba(1.0, 0.0, 0.0, 0.8)";
+        region.end = Math.min(region.start + 0.5, wavesurfer.getDuration());
+        wavesurfer.addRegion(region);
+        console.log(region);
+    });
 }
 
 function movePlayhead(time) {
@@ -35,6 +41,7 @@ function initializeWavesurfer(app, args) {
     });
     wavesurfer.on('seek', function(proportion) { movePlayhead(proportion * wavesurfer.getDuration()) });
     wavesurfer.on('audioprocess', movePlayhead);
+    wavesurfer.on('region-update-end', function(region, event) { console.log(region); })
 
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
     app.ports.jsEditorPlayPause.subscribe(togglePlaying);

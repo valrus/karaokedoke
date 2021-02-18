@@ -81,21 +81,14 @@ lyricBefore t maybeLyric =
             lyric.begin < t
 
 
-
--- Does this page _start_ before the given time?
-
-
-pageIsBefore : Milliseconds -> LyricPage -> Bool
-pageIsBefore t page =
-    List.head page.lines
-        |> Maybe.andThen (Just << .tokens)
-        |> Maybe.andThen List.head
-        |> lyricBefore t
-
-
 pageAtTime : Milliseconds -> LyricBook -> Maybe LyricPage
 pageAtTime time book =
-    List.head <| List.filter (pageIsBefore time) <| List.reverse book
+    List.head <| List.filter (\page -> page.begin < time) <| List.reverse book
+
+
+allLines : LyricBook -> List LyricLine
+allLines lyrics =
+    List.concatMap .lines lyrics
 
 
 
