@@ -18,13 +18,16 @@ type alias WaveformRegion =
     }
 
 
-port gotWaveform : (Json.Decode.Value -> msg) -> Sub msg
+port gotWaveformLength : (Json.Decode.Value -> msg) -> Sub msg
 
 
-port movePlayhead : (Json.Decode.Value -> msg) -> Sub msg
+port movedPlayhead : (Json.Decode.Value -> msg) -> Sub msg
 
 
 port changedPlaystate : (Json.Decode.Value -> msg) -> Sub msg
+
+
+port addedRegion : (Json.Decode.Value -> msg) -> Sub msg
 
 
 port jsEditorInitWaveform : { containerId : String, songUrl : String } -> Cmd msg

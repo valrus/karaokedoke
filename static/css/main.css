@@ -4,6 +4,10 @@ html {
     box-sizing: border-box;
 }
 
+wave {
+    height: 100%;
+}
+
 *, *:before, *:after {
     -webkit-box-sizing: inherit;
     -moz-box-sizing: inherit;

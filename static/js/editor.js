@@ -1,18 +1,35 @@
 var wavesurfer;
 
+
+function sendRegion(region) {
+    console.log(region);
+    console.log({
+        id: region.id,
+        start: region.start,
+        startPixels: region.element.offsetLeft,
+        endPixels: region.element.offsetLeft + region.element.offsetWidth
+    });
+    app.ports.addedRegion.send({
+        id: region.id,
+        start: region.start,
+        startPixels: region.element.offsetLeft,
+        endPixels: region.element.offsetLeft + region.element.offsetWidth
+    });
+}
+
 function setupRegions(regions) {
     console.log('in jsEditorCreateRegions');
     regions.forEach(region => {
         region.resize = false;
         region.color = "rgba(1.0, 0.0, 0.0, 0.8)";
-        region.end = Math.min(region.start + 0.5, wavesurfer.getDuration());
-        wavesurfer.addRegion(region);
-        console.log(region);
+        region.end = Math.min(region.start + 0.2, wavesurfer.getDuration());
+        addedRegion = wavesurfer.addRegion(region);
+        sendRegion(addedRegion);
     });
 }
 
-function movePlayhead(time) {
-    app.ports.movePlayhead.send(time);
+function sendPlayhead(time) {
+    app.ports.movedPlayhead.send(time);
 }
 
 function togglePlaying(currentlyPlaying) {
@@ -27,21 +44,31 @@ function togglePlaying(currentlyPlaying) {
 
 function initializeWavesurfer(app, args) {
     console.log("hit initializeWavesurfer in js with " + args.containerId + " and " + args.songUrl);
+
     wavesurfer = WaveSurfer.create({
         container: '#' + args.containerId,
+        vertical: true,
+        fillParent: false,
+        height: 800,
         plugins: [
             WaveSurfer.regions.create({})
         ]
     });
+
     wavesurfer.on('ready', function () {
-        app.ports.gotWaveform.send({ success: true, error: '' });
+        console.log("wavesurfer sending length: " + wavesurfer.getDuration());
+        app.ports.gotWaveformLength.send({ length: wavesurfer.getDuration(), error: null });
     });
+
     wavesurfer.on('error', function(errorString) {
-        app.ports.gotWaveform.send({ success: false, error: errorString });
+        app.ports.gotWaveformLength.send({ error: errorString, length: null });
     });
-    wavesurfer.on('seek', function(proportion) { movePlayhead(proportion * wavesurfer.getDuration()) });
-    wavesurfer.on('audioprocess', movePlayhead);
-    wavesurfer.on('region-update-end', function(region, event) { console.log(region); })
+
+    wavesurfer.on('seek', function(proportion) { sendPlayhead(proportion * wavesurfer.getDuration()) });
+
+    wavesurfer.on('audioprocess', sendPlayhead);
+
+    wavesurfer.on('region-updated', function(region) { sendRegion(region); })
 
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
     app.ports.jsEditorPlayPause.subscribe(togglePlaying);

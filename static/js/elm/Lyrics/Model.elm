@@ -6,20 +6,24 @@ import Json.Decode as Decode
 import Json.Decode.Extra
 
 
+type alias LyricId =
+    String
+
+
 type alias Timespan t =
     { t | begin : Milliseconds, end : Milliseconds }
 
 
 type alias Lyric =
-    { id : String, text : String, begin : Milliseconds, end : Milliseconds }
+    { id : LyricId, text : String, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricLine =
-    { id : String, tokens : List Lyric, begin : Milliseconds, end : Milliseconds }
+    { id : LyricId, tokens : List Lyric, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricPage =
-    { id : String, lines : List LyricLine, begin : Milliseconds, end : Milliseconds }
+    { id : LyricId, lines : List LyricLine, begin : Milliseconds, end : Milliseconds }
 
 
 type alias LyricBook =

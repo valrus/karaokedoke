@@ -3,27 +3,45 @@ module Editor.State exposing (..)
 --
 
 import Debug exposing (log)
+import Dict exposing (Dict)
 import Editor.Ports as Ports
 import Helpers exposing (Milliseconds, Seconds, seconds)
 import Http
 import Json.Decode as D
 import List exposing (filter)
-import Lyrics.Model exposing (LyricBook, allLines, lyricBookDecoder)
+import Lyrics.Model exposing (LyricBook, LyricId, allLines, lyricBookDecoder, secondsStringAsMillisecondsDecoder)
 import RemoteData exposing (RemoteData(..), WebData)
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Url.Builder
 
 
-type alias WaveformResult =
-    RemoteData String ()
+type alias WaveformLengthResult =
+    RemoteData String Milliseconds
+
+
+type alias LyricPosition =
+    { startTime : Milliseconds
+    , topPixels : Int
+    , bottomPixels : Int
+    }
+
+
+lyricPositionDecoder : D.Decoder ( LyricId, LyricPosition )
+lyricPositionDecoder =
+    D.map2 Tuple.pair
+        (D.field "id" D.string)
+        (D.map3 LyricPosition
+             (D.map seconds <| D.field "start" D.float)
+             (D.field "startPixels" D.int)
+             (D.field "endPixels" D.int))
 
 
 type alias Model =
     { songId : SongId
     , song : WebData (Prepared Song)
     , lyrics : WebData LyricBook
-    , waveform : WaveformResult
-    , snipping : Bool
+    , lyricPositions : Dict LyricId LyricPosition
+    , waveformLength : WaveformLengthResult
     , playhead : Milliseconds
     , playing : Bool
     }
@@ -33,13 +51,11 @@ type Msg
     = GotSong (Result Http.Error (Prepared Song))
     | GotLyrics (Result Http.Error LyricBook)
     | MoveLyric
-    | GotWaveform (Result D.Error WaveformResult)
-    | ClickedSnipStrip
-    | Snipped
-    | CanceledSnip
+    | GotWaveform (Result D.Error WaveformLengthResult)
     | SetPlayhead (Result D.Error Seconds)
     | PlayPause Bool
     | ChangedPlaystate (Result D.Error Bool)
+    | AddedRegion (Result D.Error ( LyricId, LyricPosition ))
 
 
 waveformContainerName : String
@@ -52,8 +68,8 @@ init songId =
     ( { songId = songId
       , song = Loading
       , lyrics = Loading
-      , waveform = NotAsked
-      , snipping = False
+      , lyricPositions = Dict.empty
+      , waveformLength = NotAsked
       , playhead = 0
       , playing = False
       }
@@ -73,25 +89,31 @@ init songId =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Ports.gotWaveform (GotWaveform << D.decodeValue waveformInitResultDecoder)
-        , Ports.movePlayhead (SetPlayhead << D.decodeValue D.float)
+        [ Ports.gotWaveformLength (GotWaveform << D.decodeValue waveformInitResultDecoder)
+        , Ports.movedPlayhead (SetPlayhead << D.decodeValue D.float)
         , Ports.changedPlaystate (ChangedPlaystate << D.decodeValue D.bool)
+        , Ports.addedRegion (AddedRegion << D.decodeValue lyricPositionDecoder)
         ]
 
 
-makeWaveformResult : Bool -> String -> WaveformResult
-makeWaveformResult success errorMsg =
-    case success of
-        True ->
-            Success ()
+makeWaveformResult : Maybe Float -> Maybe String -> WaveformLengthResult
+makeWaveformResult waveformLength errorMsg =
+    case ( waveformLength, errorMsg ) of
+        ( Just length, _ ) ->
+            Success (seconds length)
 
-        False ->
-            Failure errorMsg
+        ( _, Just error) ->
+            Failure error
+
+        _ ->
+            Failure "Totally unrecognizable result from waveform initialization???"
 
 
-waveformInitResultDecoder : D.Decoder WaveformResult
+waveformInitResultDecoder : D.Decoder WaveformLengthResult
 waveformInitResultDecoder =
-    D.map2 makeWaveformResult (D.at [ "success" ] D.bool) (D.at [ "error" ] D.string)
+    D.map2 makeWaveformResult
+        (D.at [ "length" ] (D.nullable D.float))
+        (D.at [ "error" ] (D.nullable D.string))
 
 
 makeRegions : LyricBook -> List Ports.WaveformRegion
@@ -110,7 +132,7 @@ update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
         GotLyrics (Ok lyricBook) ->
-            ( { model | lyrics = Success lyricBook, waveform = Loading }
+            ( { model | lyrics = Success lyricBook, waveformLength = Loading }
             , Ports.jsEditorInitWaveform <|
                 { containerId = waveformContainerName
                 , songUrl = Url.Builder.absolute [ "api", "songs", model.songId ] []
@@ -130,24 +152,25 @@ update model msg =
             ( model, Cmd.none )
 
         GotWaveform (Err waveformResultDecodeError) ->
-            ( { model | waveform = Failure (D.errorToString waveformResultDecodeError) }, Cmd.none )
+            ( { model | waveformLength = Failure (log "waveformErr" (D.errorToString waveformResultDecodeError)) }
+            , Cmd.none )
 
         GotWaveform (Ok result) ->
-            ( { model | waveform = log "GotWaveform Ok" result }
+            ( { model | waveformLength = log "GotWaveform Ok" result }
             , Ports.jsEditorCreateRegions <| RemoteData.unwrap [] makeRegions model.lyrics
             )
 
-        ClickedSnipStrip ->
-            ( { model | snipping = True }, Cmd.none )
+        AddedRegion (Err addedRegionDecodeError) ->
+            ( { model | waveformLength = Failure (log "regionErr" (D.errorToString addedRegionDecodeError)) }
+            , Cmd.none )
 
-        Snipped ->
-            ( { model | snipping = False }, Cmd.none )
-
-        CanceledSnip ->
-            ( { model | snipping = False }, Cmd.none )
+        AddedRegion (Ok ( id, pos )) ->
+            ( { model | lyricPositions = Dict.insert id pos model.lyricPositions }
+            , Cmd.none)
 
         SetPlayhead (Err error) ->
-            ( model, Cmd.none )
+            ( model
+            , Cmd.none )
 
         SetPlayhead (Ok positionInSeconds) ->
             ( { model | playhead = seconds positionInSeconds }

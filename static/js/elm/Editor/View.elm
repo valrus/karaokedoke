@@ -1,93 +1,102 @@
 module Editor.View exposing (view)
 
 import Debug exposing (log)
+import Dict
 import Editor.State exposing (Model, Msg(..), waveformContainerName)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
-import Helpers exposing (Milliseconds, errorToString)
-import Html exposing (Html)
+import Helpers exposing (Milliseconds, errorToString, inSeconds)
+import Html exposing (Html, div)
 import Html.Attributes exposing (id, style)
 import Html.Events exposing (on)
 import Json.Decode
 import Lyrics.Model exposing (..)
 import Ports
-import RemoteData exposing (RemoteData(..), WebData)
+import RemoteData exposing (RemoteData(..), WebData, toMaybe)
+
+
+headerPadding : Int
+headerPadding =
+    10
+
+
+headerContentHeight : Int
+headerContentHeight =
+    56
+
+
+headerHeight : Int
+headerHeight =
+    headerContentHeight + (2 * headerPadding)
 
 
 songHeader : Model -> Element Msg
 songHeader model =
-    el
+    row
         [ centerX
         , Font.size 36
         ]
     <|
-        text <|
-            (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+    [
+     text <| (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+    ]
 
 
 
 -- cursor setting: https://gist.github.com/dsdsdsdsdsds/bd142334efcd81f0b30e
 
 
-snipStrip : Model -> Element Msg
-snipStrip model =
-    let
-        cursorStyle =
-            if model.snipping then
-                "url(/images/scissors-closed-white.svg) 16 16, ew-resize"
-
-            else
-                "url(/images/scissors-open-white.svg) 16 16, ew-resize"
-    in
-    el
-        (List.concat
-            [ [ centerX
-              , alignTop
-              , height fill
-              , width (px 16)
-              , Background.color <| rgba 1.0 0.0 0.0 0.1
-              , htmlAttribute <| style "cursor" cursorStyle
-              , Events.onMouseDown ClickedSnipStrip
-              , Events.onMouseLeave CanceledSnip
-              ]
-            , if model.snipping then
-                [ Events.onMouseUp Snipped ]
-
-              else
-                []
-            ]
-        )
-        Element.none
-
-
-waveform : Element Msg
-waveform =
+waveform : Model -> Element Msg
+waveform model =
     el
         [ htmlAttribute <| id waveformContainerName
-        , width fill
-        , height (px 60)
+        , htmlAttribute <| style "display" "flex"
+        -- TODO: constantize this number and pass it through the port to initialize wavesurfer
+        , width (px 800)
+        , height fill
         , centerX
-        , centerY
+        , alignTop
+        , inFront <| viewEditor model
         ]
         Element.none
 
 
 playingSymbol : Model -> String
 playingSymbol model =
-    if model.playing then "⏸️" else "▶️"
+    if model.playing then
+        "⏸️"
+
+    else
+        "▶️"
+
+
+controlsWidth : Int
+controlsWidth =
+    56
+
+
+waveformSpacing : Int
+waveformSpacing =
+    10
+
+
+lyricsLeftMargin : Int
+lyricsLeftMargin =
+    (waveformSpacing * 2) + controlsWidth
 
 
 playPauseButton : Model -> Element Msg
 playPauseButton model =
     el
-        [ Font.size 56
+        [ Font.size headerContentHeight
         , Events.onClick <| PlayPause model.playing
         , centerY
+        , centerX
         , moveDown 5
-        , width shrink
+        , width (px controlsWidth)
         , height shrink
         , pointer
         ]
@@ -97,97 +106,92 @@ playPauseButton model =
 songControls : Model -> Element Msg
 songControls model =
     column
-        [ ]
+        []
         [ playPauseButton model ]
 
 
-waveformSection : Model -> Element Msg
-waveformSection model =
-    row
-        [ width fill
-        , centerX
-        , centerY
-        , spacing 10
-        ]
-        [ songControls model
-        , waveform ]
-
-
-lyricsLineElement : Milliseconds -> Color -> Timespan LyricLine -> Element Msg
-lyricsLineElement playhead baseBackgroundColor line =
-    row [ spacing 5
-        , padding 5
-        , Background.color <|
-            if line.begin < playhead then
-                rgba 0.6 0.6 1.0 0.8
-            else
-                baseBackgroundColor
-        ]
-        <|
-        (List.map .text >> List.map text) line.tokens
-
-
-lyricsPageElement : Milliseconds -> Timespan LyricPage -> Element Msg
-lyricsPageElement playhead page =
-    let pageBackground =
-            if page.begin < playhead then
-                rgba 1.0 0.8 0.8 1.0
-            else
-                rgba 0.9 0.9 0.9 0.8
-                    in
-    column
-        [ centerX
-        , alignTop
-        , width fill
-        , Background.color pageBackground
+lyricTokensHtml : Timespan LyricLine -> Html Msg
+lyricTokensHtml line =
+    div
+        [ style "padding" "5px"
         ]
     <|
-        List.map (lyricsLineElement playhead pageBackground) page.lines
+        [ div [] <| [ Html.text <| (List.map .text >> String.join " ") line.tokens ] ]
 
 
-lyricsElement : Milliseconds -> WebData LyricBook -> Element Msg
-lyricsElement playhead lyricData =
-    column [ centerX, alignTop, width fill, spacing 10 ] <|
-        case lyricData of
+lyricsLineHtml : Model -> Timespan LyricLine -> Html Msg
+lyricsLineHtml model line =
+    let
+        topPixels =
+            case (Dict.get line.id model.lyricPositions) of
+                Just pos ->
+                    pos.bottomPixels
+
+                Nothing ->
+                    round <| 20 * (inSeconds line.begin)
+    in
+        div
+            -- TODO move this to CSS
+            [ style "position" "absolute"
+            , style "display" "flex"
+            , style "justify-content" "center"
+            , style "width" "100%"
+            , style "top" <| String.concat [ String.fromInt <| topPixels, "px" ]
+            , style "background-color" <|
+                if line.begin < model.playhead then
+                    "rgba(255, 200, 200, 0.8)"
+
+                else
+                    "rgba(222, 222, 222, 0.8)"
+            ]
+            [ lyricTokensHtml line
+            ]
+
+
+lyricsPageHtml : Model -> Timespan LyricPage -> Html Msg
+lyricsPageHtml model page =
+    let
+        pageBackground =
+            if page.begin < model.playhead then
+                "rgba(1.0, 0.8, 0.8, 1.0)"
+
+            else
+                "rgba(0.9, 0.9, 0.9, 0.8)"
+    in
+    div
+        [ style "background-color" pageBackground
+        ]
+    <|
+        List.map (lyricsLineHtml model) page.lines
+
+
+lyricsHtml : Model -> Html Msg
+lyricsHtml model =
+    div
+    []
+    <|
+        case model.lyrics of
             NotAsked ->
-                [ text "La de da" ]
+                [ Html.text "La de da" ]
 
             Loading ->
-                [ text "Loading" ]
+                [ Html.text "Loading" ]
 
             Failure e ->
-                [ text <| errorToString e ]
+                [ Html.text <| errorToString e ]
 
             Success lyrics ->
-                List.map (lyricsPageElement playhead) lyrics
+                List.map (lyricsLineHtml model) <| List.concatMap .lines lyrics
 
 
 lyricsSection : Model -> Element Msg
 lyricsSection model =
     row
-        [ centerX, alignTop ]
-        [ snipStrip model
-        , lyricsElement model.playhead model.lyrics
-        ]
-
-
-iconAttribution : Element Msg
-iconAttribution =
-    el
         [ centerX
+        , alignTop
         , width fill
-        , alignBottom
-        , padding 10
-        , Background.color <| rgba 0.8 0.8 1.0 0.9
         ]
-    <|
-        paragraph
-            [ centerX, width shrink ]
-            [ text "Scissors cursor icons made by "
-            , link [] { url = "https://www.flaticon.com/authors/freepik", label = text "Freepik" }
-            , text " from "
-            , link [] { url = "https://www.flaticon.com/", label = text "flaticon.com" }
-            ]
+        [ html <| lyricsHtml model ]
 
 
 viewEditor : Model -> Element Msg
@@ -196,8 +200,7 @@ viewEditor model =
         [ centerX
         , alignTop
         , width fill
-        , paddingEach { top = 130, right = 40, bottom = 40, left = 40 }
-        , spacing 20
+        , htmlAttribute <| style "z-index" "5"
         ]
         [ lyricsSection model
         ]
@@ -205,15 +208,16 @@ viewEditor model =
 
 header : Model -> Element Msg
 header model =
-    column
+    row
         [ width fill
         , alignTop
-        , padding 10
+        , padding headerPadding
         , spacing 10
         , Background.color <| rgba 0.8 0.8 0.8 1.0
+        , htmlAttribute <| style "z-index" "5"
         ]
-        [ songHeader model
-        , waveformSection model
+        [ songControls model
+        , songHeader model
         ]
 
 
@@ -221,7 +225,13 @@ view : Model -> Html Msg
 view model =
     layout
         [ inFront <| header model
-        , inFront <| iconAttribution
         ]
     <|
-        viewEditor model
+        row
+            [ width fill
+            , alignTop
+            , centerX
+            , paddingEach { top = headerHeight + waveformSpacing, right = 0, bottom = 0, left = lyricsLeftMargin }
+            ]
+            [ waveform model
+            ]
