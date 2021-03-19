@@ -110,7 +110,7 @@ songControls model =
         [ playPauseButton model ]
 
 
-lyricTokensHtml : Timespan LyricLine -> Html Msg
+lyricTokensHtml : LyricLine -> Html Msg
 lyricTokensHtml line =
     div
         [ style "padding" "5px"
@@ -119,7 +119,7 @@ lyricTokensHtml line =
         [ div [] <| [ Html.text <| (List.map .text >> String.join " ") line.tokens ] ]
 
 
-lyricsLineHtml : Model -> Timespan LyricLine -> Html Msg
+lyricsLineHtml : Model -> LyricLine -> Html Msg
 lyricsLineHtml model line =
     let
         topPixels =
@@ -148,7 +148,7 @@ lyricsLineHtml model line =
             ]
 
 
-lyricsPageHtml : Model -> Timespan LyricPage -> Html Msg
+lyricsPageHtml : Model -> LyricPage -> Html Msg
 lyricsPageHtml model page =
     let
         pageBackground =
@@ -206,6 +206,18 @@ viewEditor model =
         ]
 
 
+saveLink : Model -> Element Msg
+saveLink model =
+    case model.lyricsUnsaved of
+        True ->
+            el
+                [ Events.onClick <| SaveLyrics ]
+                (text "Save")
+
+        False ->
+            text "Saved"
+
+
 header : Model -> Element Msg
 header model =
     row
@@ -218,6 +230,7 @@ header model =
         ]
         [ songControls model
         , songHeader model
+        , saveLink model
         ]
 
 

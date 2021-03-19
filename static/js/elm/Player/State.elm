@@ -7,6 +7,7 @@ import Debug exposing (log)
 import Helpers exposing (Milliseconds, inSeconds, seconds)
 import Http exposing (Error(..))
 import Json.Decode as D
+import Lyrics.Decode exposing (lyricBookDecoder, sizedLyricPageDecoder)
 import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (leagueGothicFontData, leagueGothicFontName, svgScratchId)
 import Ports

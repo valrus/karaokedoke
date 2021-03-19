@@ -8,8 +8,11 @@ import Editor.Ports as Ports
 import Helpers exposing (Milliseconds, Seconds, seconds)
 import Http
 import Json.Decode as D
+import Json.Encode
 import List exposing (filter)
-import Lyrics.Model exposing (LyricBook, LyricId, allLines, lyricBookDecoder, secondsStringAsMillisecondsDecoder)
+import Lyrics.Decode exposing (lyricBookDecoder)
+import Lyrics.Encode exposing (encodeLyricBook)
+import Lyrics.Model exposing (..)
 import RemoteData exposing (RemoteData(..), WebData)
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Url.Builder
@@ -17,6 +20,10 @@ import Url.Builder
 
 type alias WaveformLengthResult =
     RemoteData String Milliseconds
+
+
+type alias LyricAdjustments =
+    Dict LyricId LyricPosition
 
 
 type alias LyricPosition =
@@ -40,22 +47,24 @@ type alias Model =
     { songId : SongId
     , song : WebData (Prepared Song)
     , lyrics : WebData LyricBook
-    , lyricPositions : Dict LyricId LyricPosition
+    , lyricPositions : LyricAdjustments
     , waveformLength : WaveformLengthResult
     , playhead : Milliseconds
     , playing : Bool
+    , lyricsUnsaved : Bool
     }
 
 
 type Msg
     = GotSong (Result Http.Error (Prepared Song))
     | GotLyrics (Result Http.Error LyricBook)
-    | MoveLyric
     | GotWaveform (Result D.Error WaveformLengthResult)
     | SetPlayhead (Result D.Error Seconds)
     | PlayPause Bool
     | ChangedPlaystate (Result D.Error Bool)
     | AddedRegion (Result D.Error ( LyricId, LyricPosition ))
+    | LyricsSaved (Result Http.Error ())
+    | SaveLyrics
 
 
 waveformContainerName : String
@@ -72,6 +81,7 @@ init songId =
       , waveformLength = NotAsked
       , playhead = 0
       , playing = False
+      , lyricsUnsaved = False
       }
     , Cmd.batch
         [ Http.get
@@ -128,6 +138,50 @@ makeRegions lyrics =
         allLines lyrics
 
 
+adjustTokens : Milliseconds -> List Lyric -> List Lyric
+adjustTokens timeDelta lyrics =
+    List.map (\lyric -> { lyric | begin = lyric.begin + timeDelta, end = lyric.end + timeDelta }) lyrics
+
+
+adjustLine : LyricAdjustments -> LyricLine -> LyricLine
+adjustLine lyricAdjustments line =
+    let
+        timeDelta =
+            (-)
+                ( Maybe.withDefault line.begin
+                     <| Maybe.map .startTime
+                     <| Dict.get line.id lyricAdjustments
+                )
+                line.begin
+
+    in
+        { line |
+              tokens = adjustTokens timeDelta line.tokens,
+              begin = (+) line.begin timeDelta,
+              end = (+) line.end timeDelta
+        }
+
+adjustPage : LyricAdjustments -> LyricPage -> LyricPage
+adjustPage lyricAdjustments page =
+    let
+        newLines =
+            List.map (adjustLine lyricAdjustments) page.lines
+
+    in
+        { page |
+              lines = newLines,
+              begin = Maybe.withDefault 0 <| List.minimum <| List.map .begin newLines,
+              end = Maybe.withDefault 0 <| List.maximum <| List.map .end newLines
+        }
+
+
+compileChanges : Model -> LyricBook
+compileChanges model =
+    List.map
+        (adjustPage model.lyricPositions)
+        <| RemoteData.withDefault [] model.lyrics
+
+
 update : Model -> Msg -> ( Model, Cmd Msg )
 update model msg =
     case msg of
@@ -148,9 +202,6 @@ update model msg =
         GotSong (Err error) ->
             ( { model | song = Failure error }, Cmd.none )
 
-        MoveLyric ->
-            ( model, Cmd.none )
-
         GotWaveform (Err waveformResultDecodeError) ->
             ( { model | waveformLength = Failure (log "waveformErr" (D.errorToString waveformResultDecodeError)) }
             , Cmd.none )
@@ -165,7 +216,7 @@ update model msg =
             , Cmd.none )
 
         AddedRegion (Ok ( id, pos )) ->
-            ( { model | lyricPositions = Dict.insert id pos model.lyricPositions }
+            ( { model | lyricPositions = Dict.insert id pos model.lyricPositions, lyricsUnsaved = True }
             , Cmd.none)
 
         SetPlayhead (Err error) ->
@@ -185,3 +236,22 @@ update model msg =
 
         ChangedPlaystate (Ok playing) ->
             ( { model | playing = playing }, Cmd.none )
+
+        LyricsSaved (Err error) ->
+            ( model, Cmd.none )
+
+        LyricsSaved (Ok ()) ->
+            ( model, Cmd.none )
+
+        SaveLyrics ->
+            ( model
+            , Http.request
+                  { method = "PUT"
+                  , headers = []
+                  , url = Url.Builder.absolute ["api", "lyrics", model.songId] []
+                  , body = Http.jsonBody <| Json.Encode.object [ ( "syncMap", encodeLyricBook <| compileChanges model ) ]
+                  , expect = Http.expectWhatever LyricsSaved
+                  , timeout = Nothing
+                  , tracker = Nothing
+                  }
+            )

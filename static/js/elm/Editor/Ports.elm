@@ -1,6 +1,7 @@
 port module Editor.Ports exposing (..)
 
 import Json.Decode
+import Lyrics.Model exposing (LyricBook)
 
 -- From wavesurfer docs:
 -- id - string - random - The id of the region.
@@ -37,3 +38,6 @@ port jsEditorCreateRegions : List WaveformRegion -> Cmd msg
 
 
 port jsEditorPlayPause : Bool -> Cmd msg
+
+
+port jsEditorSaveChanges : LyricBook -> Cmd msg

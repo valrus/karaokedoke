@@ -24,6 +24,7 @@ function setupRegions(regions) {
         region.color = "rgba(1.0, 0.0, 0.0, 0.8)";
         region.end = Math.min(region.start + 0.2, wavesurfer.getDuration());
         addedRegion = wavesurfer.addRegion(region);
+        // I think this isn't necessary?
         sendRegion(addedRegion);
     });
 }
@@ -50,6 +51,8 @@ function initializeWavesurfer(app, args) {
         vertical: true,
         fillParent: false,
         height: 800,
+        barWidth: 5,
+        barRadius: 5,
         plugins: [
             WaveSurfer.regions.create({})
         ]
