@@ -14,12 +14,10 @@ import Lyrics.Decode exposing (lyricBookDecoder)
 import Lyrics.Encode exposing (encodeLyricBook)
 import Lyrics.Model exposing (..)
 import RemoteData exposing (RemoteData(..), WebData)
+import Scrubber.Helpers exposing (..)
+import Scrubber.Ports as ScrubberPorts
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Url.Builder
-
-
-type alias WaveformLengthResult =
-    RemoteData String Milliseconds
 
 
 type alias LyricAdjustments =
@@ -99,31 +97,11 @@ init songId =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Ports.gotWaveformLength (GotWaveform << D.decodeValue waveformInitResultDecoder)
-        , Ports.movedPlayhead (SetPlayhead << D.decodeValue D.float)
-        , Ports.changedPlaystate (ChangedPlaystate << D.decodeValue D.bool)
+        [ ScrubberPorts.gotWaveformLength (GotWaveform << D.decodeValue waveformInitResultDecoder)
+        , ScrubberPorts.movedPlayhead (SetPlayhead << D.decodeValue D.float)
+        , ScrubberPorts.changedPlaystate (ChangedPlaystate << D.decodeValue D.bool)
         , Ports.addedRegion (AddedRegion << D.decodeValue lyricPositionDecoder)
         ]
-
-
-makeWaveformResult : Maybe Float -> Maybe String -> WaveformLengthResult
-makeWaveformResult waveformLength errorMsg =
-    case ( waveformLength, errorMsg ) of
-        ( Just length, _ ) ->
-            Success (seconds length)
-
-        ( _, Just error) ->
-            Failure error
-
-        _ ->
-            Failure "Totally unrecognizable result from waveform initialization???"
-
-
-waveformInitResultDecoder : D.Decoder WaveformLengthResult
-waveformInitResultDecoder =
-    D.map2 makeWaveformResult
-        (D.at [ "length" ] (D.nullable D.float))
-        (D.at [ "error" ] (D.nullable D.string))
 
 
 makeRegions : LyricBook -> List Ports.WaveformRegion
@@ -229,7 +207,7 @@ update model msg =
             )
 
         PlayPause playing ->
-            ( model, Ports.jsEditorPlayPause playing )
+            ( model, ScrubberPorts.jsPlayPause playing )
 
         ChangedPlaystate (Err error) ->
             ( model, Cmd.none )

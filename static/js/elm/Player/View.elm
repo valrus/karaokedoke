@@ -2,7 +2,6 @@ module Player.View exposing (view)
 
 --
 
-import AudioPlayer
 import Debug exposing (log)
 import Helpers exposing (Milliseconds, seconds)
 import Html exposing (Html)
@@ -13,7 +12,6 @@ import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (leagueGothicFontName, svgScratchId)
 import Player.State exposing (..)
 import RemoteData exposing (RemoteData(..))
-import Scrubber.View
 import String
 import Svg exposing (Svg)
 import Svg.Attributes as SvgAttr
@@ -151,28 +149,31 @@ viewPage time maybePage =
                 , SvgAttr.height "100%"
                 ]
             <|
-                computePage time page
+                computePage time (log "page" page)
+
+
+waveform : Model -> Html Msg
+waveform model =
+    Html.div
+        [ HtmlAttr.id "waveform"
+        , HtmlAttr.style "position" "absolute"
+        , HtmlAttr.style "bottom" "0"
+        , HtmlAttr.style "width" "100%"
+        , HtmlAttr.style "height" "100%"
+        ]
+        []
 
 
 footer : Model -> Html Msg
 footer model =
-    let
-        footerContent =
-            case model.lyrics of
-                Success lyricBook ->
-                    Scrubber.View.view model.scrubber lyricBook
-
-                _ ->
-                    Html.text "No lyrics"
-    in
     Html.footer
         [ HtmlAttr.style "position" "fixed"
         , HtmlAttr.style "bottom" "0"
         , HtmlAttr.style "left" "0"
         , HtmlAttr.style "width" "100%"
-        , HtmlAttr.style "height" (String.fromInt Scrubber.View.scrubberHeight ++ "px")
+        , HtmlAttr.style "height" "80px"
         ]
-        [ footerContent
+        [ waveform model
         ]
 
 
@@ -201,16 +202,15 @@ view model =
     Html.div
         [ HtmlAttr.style "width" "100%"
         , HtmlAttr.style "height" "100%"
-        , Html.Events.onMouseUp TogglePlayback
+        , Html.Events.onMouseUp PlayPause
         ]
         [ scratch model
-        , AudioPlayer.view model
         , Html.div
             [ HtmlAttr.width 1024
             , HtmlAttr.style "margin" "100px auto"
             , HtmlAttr.style "width" "1024px"
             ]
-            [ viewPage model.scrubber.playhead model.page
+            [ viewPage model.playhead model.page
             ]
         , footer model
         ]

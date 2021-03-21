@@ -29,21 +29,7 @@ function setupRegions(regions) {
     });
 }
 
-function sendPlayhead(time) {
-    app.ports.movedPlayhead.send(time);
-}
-
-function togglePlaying(currentlyPlaying) {
-    if (currentlyPlaying) {
-        wavesurfer.pause();
-    }
-    else {
-        wavesurfer.play();
-    }
-    app.ports.changedPlaystate.send(wavesurfer.isPlaying());
-}
-
-function initializeWavesurfer(app, args) {
+function editorInitializeWavesurfer(app, args) {
     console.log("hit initializeWavesurfer in js with " + args.containerId + " and " + args.songUrl);
 
     wavesurfer = WaveSurfer.create({
@@ -74,7 +60,7 @@ function initializeWavesurfer(app, args) {
     wavesurfer.on('region-updated', function(region) { sendRegion(region); })
 
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
-    app.ports.jsEditorPlayPause.subscribe(togglePlaying);
+    app.ports.jsPlayPause.subscribe(togglePlaying);
 
     wavesurfer.load(args.songUrl);
     return (wavesurfer !== 'undefined');

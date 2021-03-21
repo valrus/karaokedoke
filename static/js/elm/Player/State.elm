@@ -4,26 +4,20 @@ module Player.State exposing (..)
 
 import Browser.Events exposing (onAnimationFrameDelta)
 import Debug exposing (log)
-import Helpers exposing (Milliseconds, inSeconds, seconds)
+import Helpers exposing (Milliseconds, Seconds, inSeconds, seconds)
 import Http exposing (Error(..))
 import Json.Decode as D
 import Lyrics.Decode exposing (lyricBookDecoder, sizedLyricPageDecoder)
 import Lyrics.Model exposing (..)
 import Lyrics.Style exposing (leagueGothicFontData, leagueGothicFontName, svgScratchId)
-import Ports
+import Player.Ports as Ports
 import RemoteData exposing (RemoteData(..), WebData, unwrap)
-import Scrubber.State as Scrubber
+import Scrubber.Helpers exposing (WaveformLengthResult, waveformInitResultDecoder)
+import Scrubber.Ports as ScrubberPorts
 import Song exposing (Prepared, Song, SongId, songDecoder)
 import Task
 import Time
 import Url.Builder
-
-
-type PlayState
-    = Paused
-    | Playing
-    | Ended
-    | Error
 
 
 type alias Model =
@@ -31,11 +25,17 @@ type alias Model =
     , song : WebData (Prepared Song)
     , songUrl : WebData String
     , page : Maybe SizedLyricPage
-    , playing : PlayState
+    , playing : Bool
     , lyrics : WebData LyricBook
-    , scrubber : Scrubber.Model
+    , waveformLength : WaveformLengthResult
+    , playhead : Milliseconds
     , fontsLoaded : Bool
     }
+
+
+waveformContainerName : String
+waveformContainerName =
+    "waveform"
 
 
 init : SongId -> ( Model, Cmd Msg )
@@ -44,19 +44,20 @@ init songId =
       , song = Loading
       , songUrl = Loading
       , page = Nothing
-      , playing = Paused
+      , playing = False
       , lyrics = Loading
-      , scrubber = Scrubber.init
+      , waveformLength = NotAsked
+      , playhead = 0
       , fontsLoaded = False
       }
     , Cmd.batch
         [ Http.get
             { url = Url.Builder.absolute [ "lyrics", songId ] []
-            , expect = Http.expectJson (GotLyrics >> Immediately) lyricBookDecoder
+            , expect = Http.expectJson GotLyrics lyricBookDecoder
             }
         , Http.get
             { url = Url.Builder.absolute [ "api", "song_data", songId ] []
-            , expect = Http.expectJson (GotSong >> Immediately) songDecoder
+            , expect = Http.expectJson GotSong songDecoder
             }
         , Ports.jsLoadFonts [ leagueGothicFontData ]
         ]
@@ -64,24 +65,14 @@ init songId =
 
 
 type Msg
-    = Immediately ModelMsg
-    | WithTime ModelMsg Milliseconds
-    | TogglePlayback
-    | SetPlayhead Milliseconds
-
-
-type ModelMsg
     = GotSong (Result Http.Error (Prepared Song))
     | GotLyrics (Result Http.Error LyricBook)
+    | GotWaveform (Result D.Error WaveformLengthResult)
     | GotFonts Bool
     | SetPageSizes (Result D.Error SizedLyricPage)
-    | SetDuration Milliseconds
-    | SetPlayState PlayState
-    | SyncPlayhead Milliseconds
-    | MoveScrubberCursor Float
-    | DragScrubber Float
-    | LeaveScrubber
-    | Animate (Maybe Milliseconds)
+    | PlayPause
+    | ChangedPlaystate (Result D.Error Bool)
+    | SetPlayhead (Result D.Error Seconds)
     | NoOp
 
 
@@ -92,8 +83,8 @@ animateTime model delta override =
             newTime
 
         Nothing ->
-            if model.playing == Playing then
-                model.scrubber.playhead + delta
+            if model.playing == True then
+                model.playhead + delta
 
             else
                 0
@@ -148,8 +139,8 @@ getNewPage prevPage nextPage =
                     }
 
 
-updateModel : ModelMsg -> Milliseconds -> Model -> ( Model, Cmd Msg )
-updateModel msg delta model =
+update : Model -> Msg -> ( Model, Cmd Msg )
+update model msg =
     case msg of
         GotSong (Ok song) ->
             ( { model | song = Success song }, Cmd.none )
@@ -158,7 +149,12 @@ updateModel msg delta model =
             ( { model | song = Failure error }, Cmd.none )
 
         GotLyrics (Ok lyrics) ->
-            ( { model | lyrics = Success lyrics }, Cmd.none )
+            ( { model | lyrics = Success lyrics }
+            , Ports.jsPlayerInitWaveform <|
+                { containerId = waveformContainerName
+                , songUrl = Url.Builder.absolute [ "accompaniment", model.songId ] []
+                }
+            )
 
         GotLyrics (Err error) ->
             ( { model | song = Failure error }, Cmd.none )
@@ -166,68 +162,48 @@ updateModel msg delta model =
         GotFonts fontsLoaded ->
             ( { model | fontsLoaded = fontsLoaded }, Cmd.none )
 
+        GotWaveform (Err waveformResultDecodeError) ->
+            ( { model | waveformLength = Failure (log "waveformErr" (D.errorToString waveformResultDecodeError)) }
+            , Cmd.none
+            )
+
+        GotWaveform (Ok result) ->
+            ( { model | waveformLength = result }
+            , Cmd.none
+            )
+
         SetPageSizes (Err error) ->
             ( { model | song = Failure <| BadBody <| D.errorToString error }
             , Cmd.none
             )
 
         SetPageSizes (Ok result) ->
-            ( { model | page = Just (log "SetPageSizes result" result) }
+            ( { model | page = Just result }
             , Cmd.none
             )
 
-        SetDuration time ->
-            ( { model | scrubber = Scrubber.setDuration time model.scrubber }
+        PlayPause ->
+            ( { model | playing = not model.playing }
+            , ScrubberPorts.jsPlayPause model.playing )
+
+        ChangedPlaystate (Err error) ->
+            ( model, Cmd.none )
+
+        ChangedPlaystate (Ok playing) ->
+            ( { model | playing = playing }
             , Cmd.none
             )
 
-        SetPlayState playing ->
-            ( { model | playing = log "SetPlayState" playing }
-            , Cmd.none
-            )
+        SetPlayhead (Err error) ->
+            ( model, Cmd.none )
 
-        Animate timeOverride ->
+        SetPlayhead (Ok positionInSeconds) ->
             let
-                newTime =
-                    animateTime model delta timeOverride
-
                 newPage =
-                    unwrap Nothing (pageAtTime newTime) model.lyrics
+                    unwrap Nothing (pageAtTime <| seconds positionInSeconds) model.lyrics
             in
-            ( { model | scrubber = Scrubber.setPlayhead newTime model.scrubber }
+            ( { model | playhead = seconds positionInSeconds }
             , getNewPage model.page newPage
-            )
-
-        SyncPlayhead playheadTime ->
-            ( { model
-                | scrubber = Scrubber.setPlayhead (log "SyncPlayhead" playheadTime) model.scrubber
-              }
-            , Cmd.none
-            )
-
-        MoveScrubberCursor cursorXProportion ->
-            ( { model
-                | scrubber = Scrubber.moveCursor (log "scrubCursor" cursorXProportion) model.scrubber
-              }
-            , Cmd.none
-            )
-
-        DragScrubber playheadProportion ->
-            ( { model
-                | scrubber = Scrubber.dragPlayhead playheadProportion model.scrubber
-              }
-            , if model.playing == Playing then
-                Ports.jsSetPlayback False
-
-              else
-                Cmd.none
-            )
-
-        LeaveScrubber ->
-            ( { model
-                | scrubber = log "LeaveScrubber" Scrubber.mouseLeave model.scrubber
-              }
-            , Cmd.none
             )
 
         NoOp ->
@@ -236,94 +212,12 @@ updateModel msg delta model =
             )
 
 
-togglePlaybackIfPossible : PlayState -> Cmd Msg
-togglePlaybackIfPossible state =
-    case state of
-        Playing ->
-            Ports.jsSetPlayback False
-
-        Paused ->
-            Ports.jsSetPlayback True
-
-        _ ->
-            Cmd.none
-
-
-update : Model -> Msg -> ( Model, Cmd Msg )
-update model msg =
-    case msg of
-        Immediately wrappedMsg ->
-            ( model
-            , Task.perform
-                (WithTime wrappedMsg)
-                (Task.map (Time.posixToMillis >> toFloat) Time.now)
-            )
-
-        WithTime modelMsg millis ->
-            let
-                result =
-                    updateModel modelMsg millis model
-            in
-            ( Tuple.first result
-            , Tuple.second result
-            )
-
-        TogglePlayback ->
-            ( model
-            , togglePlaybackIfPossible model.playing
-            )
-
-        SetPlayhead pos ->
-            ( { model | scrubber = Scrubber.stopDragging model.scrubber }
-            , Ports.jsSeekTo (log "seekTo" (inSeconds pos))
-            )
-
-
-
--- Subscriptions and related functions
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch <|
-        [ Ports.loadedFonts (Immediately << GotFonts)
-        , Ports.playState (Immediately << SetPlayState << toPlayState)
-        , Ports.playhead (Immediately << SyncPlayhead)
-        , Ports.gotSizes (Immediately << SetPageSizes << D.decodeValue sizedLyricPageDecoder)
+        [ Ports.loadedFonts GotFonts
+        , ScrubberPorts.changedPlaystate (ChangedPlaystate << D.decodeValue D.bool)
+        , ScrubberPorts.movedPlayhead (SetPlayhead << D.decodeValue D.float)
+        , Ports.gotSizes (SetPageSizes << D.decodeValue sizedLyricPageDecoder)
+        , ScrubberPorts.gotWaveformLength (GotWaveform << D.decodeValue waveformInitResultDecoder)
         ]
-            ++ (if model.playing == Playing then
-                    [ onAnimationFrameDelta <| animateMsg model.scrubber ]
-
-                else
-                    []
-               )
-
-
-animateMsg : Scrubber.Model -> (Float -> Msg)
-animateMsg scrubber =
-    case scrubber.dragging of
-        True ->
-            WithTime <| Animate <| Just scrubber.playhead
-
-        False ->
-            WithTime <| Animate Nothing
-
-
-playStateOnLoad : Bool -> PlayState
-playStateOnLoad success =
-    case success of
-        True ->
-            Paused
-
-        False ->
-            Error
-
-
-toPlayState : Bool -> PlayState
-toPlayState playing =
-    case playing of
-        True ->
-            Playing
-
-        False ->
-            Paused

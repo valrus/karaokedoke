@@ -5,6 +5,7 @@ module Helpers exposing (..)
 import Debug
 import Http exposing (Error(..))
 import Json.Decode as Decode
+import RemoteData exposing (RemoteData)
 
 
 type alias Milliseconds

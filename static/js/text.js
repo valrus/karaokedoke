@@ -55,3 +55,21 @@ function getSizedLyricPage(pageLyrics, scratchSvgId, font) {
     }
     return sized_lyric_page;
 }
+
+function makeSvgTextElement(font) {
+    var svg = document.createElementNS(svgNS, "svg");
+    var textElement = document.createElementNS(svgNS, "text");
+    var data = document.createTextNode("load this font");
+    svg.setAttribute('visibility', 'hidden');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.setAttribute('font-family', font);
+    svg.setAttribute('font-size', '512px');
+    svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    document.body.appendChild(svg);
+    svg.appendChild(textElement);
+    textElement.appendChild(data);
+
+    return svg;
+}
