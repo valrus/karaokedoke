@@ -149,7 +149,7 @@ viewPage time maybePage =
                 , SvgAttr.height "100%"
                 ]
             <|
-                computePage time (log "page" page)
+                computePage time page
 
 
 waveform : Model -> Html Msg
