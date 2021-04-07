@@ -31,10 +31,23 @@ type alias LyricPosition =
     }
 
 
-lyricPositionDecoder : D.Decoder ( LyricId, LyricPosition )
+type alias LyricUpdate =
+    { id : String
+    , moved : Bool
+    , pos : LyricPosition
+    }
+
+
+makeLyricUpdate : String -> Bool -> LyricPosition -> LyricUpdate
+makeLyricUpdate lyricId moved lyricPosition =
+    { id = lyricId, moved = moved, pos = lyricPosition }
+
+
+lyricPositionDecoder : D.Decoder LyricUpdate
 lyricPositionDecoder =
-    D.map2 Tuple.pair
+    D.map3 makeLyricUpdate
         (D.field "id" D.string)
+        (D.field "moved" D.bool)
         (D.map3 LyricPosition
              (D.map seconds <| D.field "start" D.float)
              (D.field "startPixels" D.int)
@@ -49,7 +62,7 @@ type alias Model =
     , waveformLength : WaveformLengthResult
     , playhead : Milliseconds
     , playing : Bool
-    , lyricsUnsaved : Bool
+    , lyricsChanged : Bool
     }
 
 
@@ -60,7 +73,7 @@ type Msg
     | SetPlayhead (Result D.Error Seconds)
     | PlayPause Bool
     | ChangedPlaystate (Result D.Error Bool)
-    | AddedRegion (Result D.Error ( LyricId, LyricPosition ))
+    | AddedRegion (Result D.Error LyricUpdate)
     | LyricsSaved (Result Http.Error ())
     | SaveLyrics
 
@@ -79,7 +92,7 @@ init songId =
       , waveformLength = NotAsked
       , playhead = 0
       , playing = False
-      , lyricsUnsaved = False
+      , lyricsChanged = False
       }
     , Cmd.batch
         [ Http.get
@@ -193,9 +206,12 @@ update model msg =
             ( { model | waveformLength = Failure (log "regionErr" (D.errorToString addedRegionDecodeError)) }
             , Cmd.none )
 
-        AddedRegion (Ok ( id, pos )) ->
-            ( { model | lyricPositions = Dict.insert id pos model.lyricPositions, lyricsUnsaved = True }
-            , Cmd.none)
+        AddedRegion (Ok lyricUpdate) ->
+            ( { model
+                  | lyricPositions = Dict.insert lyricUpdate.id lyricUpdate.pos model.lyricPositions
+                  , lyricsChanged = lyricUpdate.moved
+              }
+            , Cmd.none )
 
         SetPlayhead (Err error) ->
             ( model
@@ -219,7 +235,8 @@ update model msg =
             ( model, Cmd.none )
 
         LyricsSaved (Ok ()) ->
-            ( model, Cmd.none )
+            ( { model | lyricsChanged = False }
+            , Cmd.none )
 
         SaveLyrics ->
             ( model

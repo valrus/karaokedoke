@@ -1,16 +1,10 @@
 var wavesurfer;
 
 
-function sendRegion(region) {
-    console.log(region);
-    console.log({
-        id: region.id,
-        start: region.start,
-        startPixels: region.element.offsetLeft,
-        endPixels: region.element.offsetLeft + region.element.offsetWidth
-    });
+function sendRegion(region, moved) {
     app.ports.addedRegion.send({
         id: region.id,
+        moved: moved,
         start: region.start,
         startPixels: region.element.offsetLeft,
         endPixels: region.element.offsetLeft + region.element.offsetWidth
@@ -18,14 +12,13 @@ function sendRegion(region) {
 }
 
 function setupRegions(regions) {
-    console.log('in jsEditorCreateRegions');
     regions.forEach(region => {
         region.resize = false;
         region.color = "rgba(1.0, 0.0, 0.0, 0.8)";
         region.end = Math.min(region.start + 0.2, wavesurfer.getDuration());
         addedRegion = wavesurfer.addRegion(region);
-        // I think this isn't necessary?
-        sendRegion(addedRegion);
+        // This is necessary to get the positions of the regions into the frontend
+        sendRegion(addedRegion, false);
     });
 }
 
@@ -57,7 +50,7 @@ function editorInitializeWavesurfer(app, args) {
 
     wavesurfer.on('audioprocess', sendPlayhead);
 
-    wavesurfer.on('region-updated', function(region) { sendRegion(region); })
+    wavesurfer.on('region-updated', function(region) { sendRegion(region, true); })
 
     app.ports.jsEditorCreateRegions.subscribe(setupRegions);
     app.ports.jsPlayPause.subscribe(togglePlaying);

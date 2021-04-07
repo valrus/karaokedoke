@@ -28,6 +28,11 @@ headerContentHeight =
     56
 
 
+waveformWidth : Int
+waveformWidth =
+    800
+
+
 headerHeight : Int
 headerHeight =
     headerContentHeight + (2 * headerPadding)
@@ -40,9 +45,8 @@ songHeader model =
         , Font.size 36
         ]
     <|
-    [
-     text <| (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
-    ]
+        [ text <| (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+        ]
 
 
 
@@ -54,8 +58,9 @@ waveform model =
     el
         [ htmlAttribute <| id waveformContainerName
         , htmlAttribute <| style "display" "flex"
-        -- TODO: constantize this number and pass it through the port to initialize wavesurfer
-        , width (px 800)
+
+        -- TODO: pass this through the port to initialize wavesurfer
+        , width (px waveformWidth)
         , height fill
         , centerX
         , alignTop
@@ -96,7 +101,7 @@ playPauseButton model =
         , centerY
         , centerX
         , moveDown 5
-        , width (px controlsWidth)
+        , width shrink
         , height shrink
         , pointer
         ]
@@ -106,7 +111,8 @@ playPauseButton model =
 songControls : Model -> Element Msg
 songControls model =
     column
-        []
+        [ width (px controlsWidth)
+        ]
         [ playPauseButton model ]
 
 
@@ -123,29 +129,29 @@ lyricsLineHtml : Model -> LyricLine -> Html Msg
 lyricsLineHtml model line =
     let
         topPixels =
-            case (Dict.get line.id model.lyricPositions) of
+            case Dict.get line.id model.lyricPositions of
                 Just pos ->
                     pos.bottomPixels
 
                 Nothing ->
-                    round <| 20 * (inSeconds line.begin)
+                    round <| 20 * inSeconds line.begin
     in
-        div
-            -- TODO move this to CSS
-            [ style "position" "absolute"
-            , style "display" "flex"
-            , style "justify-content" "center"
-            , style "width" "100%"
-            , style "top" <| String.concat [ String.fromInt <| topPixels, "px" ]
-            , style "background-color" <|
-                if line.begin < model.playhead then
-                    "rgba(255, 200, 200, 0.8)"
+    div
+        -- TODO move this to CSS
+        [ style "position" "absolute"
+        , style "display" "flex"
+        , style "justify-content" "center"
+        , style "width" "100%"
+        , style "top" <| String.concat [ String.fromInt <| topPixels, "px" ]
+        , style "background-color" <|
+            if line.begin < model.playhead then
+                "rgba(255, 200, 200, 0.8)"
 
-                else
-                    "rgba(222, 222, 222, 0.8)"
-            ]
-            [ lyricTokensHtml line
-            ]
+            else
+                "rgba(222, 222, 222, 0.8)"
+        ]
+        [ lyricTokensHtml line
+        ]
 
 
 lyricsPageHtml : Model -> LyricPage -> Html Msg
@@ -168,7 +174,7 @@ lyricsPageHtml model page =
 lyricsHtml : Model -> Html Msg
 lyricsHtml model =
     div
-    []
+        []
     <|
         case model.lyrics of
             NotAsked ->
@@ -208,14 +214,18 @@ viewEditor model =
 
 saveLink : Model -> Element Msg
 saveLink model =
-    case model.lyricsUnsaved of
+    case model.lyricsChanged of
         True ->
             el
-                [ Events.onClick <| SaveLyrics ]
+                [ width (px controlsWidth)
+                , Events.onClick <| SaveLyrics
+                ]
                 (text "Save")
 
         False ->
-            text "Saved"
+            el
+                [ width (px controlsWidth) ]
+                (text "Saved")
 
 
 header : Model -> Element Msg
@@ -226,7 +236,7 @@ header model =
         , padding headerPadding
         , spacing 10
         , Background.color <| rgba 0.8 0.8 0.8 1.0
-        , htmlAttribute <| style "z-index" "5"
+        , htmlAttribute <| style "z-index" "10"
         ]
         [ songControls model
         , songHeader model
@@ -244,7 +254,7 @@ view model =
             [ width fill
             , alignTop
             , centerX
-            , paddingEach { top = headerHeight + waveformSpacing, right = 0, bottom = 0, left = lyricsLeftMargin }
+            , paddingEach { top = headerHeight + waveformSpacing, right = 0, bottom = 0, left = 0 }
             ]
             [ waveform model
             ]
