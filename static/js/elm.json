@@ -18,7 +18,7 @@
             "elm-community/json-extra": "4.2.0",
             "elm-community/list-extra": "8.2.2",
             "krisajenkins/remotedata": "6.0.1",
-            "mdgriffith/elm-ui": "1.1.5"
+            "mdgriffith/elm-ui": "1.1.8"
         },
         "indirect": {
             "elm/bytes": "1.0.8",
