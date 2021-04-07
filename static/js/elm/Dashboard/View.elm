@@ -11,7 +11,7 @@ import Element.Font as Font
 import File
 import Helpers exposing (errorToString)
 import Html exposing (Html)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, href)
 import Html.Events exposing (preventDefaultOn)
 import Json.Decode as D
 import RemoteData exposing (RemoteData(..), WebData)
@@ -29,8 +29,7 @@ tableBorder =
 
 tableCellAttrs : List (Attribute Msg)
 tableCellAttrs =
-    [ padding 5
-    ]
+    [ padding 5 ]
 
 
 songTableCell : List (Attribute Msg) -> Element Msg -> Element Msg
@@ -38,9 +37,24 @@ songTableCell attrs content =
     el (List.append tableCellAttrs attrs) <| content
 
 
-editSongLink : ( SongId, Processed Song ) -> Element Msg
+editSongLink : ( SongId, Processed Song ) -> Html Msg
 editSongLink ( songId, song ) =
-    link [] { url = Url.Builder.absolute [ "edit", songId ] [], label = text song.name }
+    Html.a [ href <| Url.Builder.absolute [ "edit", songId ] [] ] <| [ Html.text song.name ]
+
+
+songTableEllipsisCell : Html Msg -> Element Msg
+songTableEllipsisCell content =
+    Element.html <|
+        Html.div
+            [ style "text-overflow" "ellipsis"
+            , style "white-space" "nowrap"
+            , style "overflow" "hidden"
+            , style "width" "100%"
+            , style "max-width" "300px"
+            , style "padding" "5px"
+            , style "flex-basis" "auto"
+            ]
+            [ content ]
 
 
 deleteSongLink : SongId -> Element Msg
@@ -97,12 +111,12 @@ viewSongDict model songDict =
                 { data = Dict.toList songDict
                 , columns =
                     [ { header = songTableCell [ Font.bold ] <| text "Song"
-                      , width = fill |> maximum 300
-                      , view = editSongLink >> songTableCell []
+                      , width = fill
+                      , view = editSongLink >> songTableEllipsisCell
                       }
                     , { header = songTableCell [ Font.bold ] <| text "Artist"
-                      , width = fill |> maximum 300
-                      , view = Tuple.second >> .artist >> text >> songTableCell []
+                      , width = fill
+                      , view = Tuple.second >> .artist >> Html.text >> songTableEllipsisCell
                       }
                     , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
                       , width = fill |> maximum 50

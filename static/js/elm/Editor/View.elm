@@ -236,7 +236,6 @@ header model =
         , padding headerPadding
         , spacing 10
         , Background.color <| rgba 0.8 0.8 0.8 1.0
-        , htmlAttribute <| style "z-index" "10"
         ]
         [ songControls model
         , songHeader model
