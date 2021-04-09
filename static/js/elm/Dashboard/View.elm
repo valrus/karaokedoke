@@ -181,8 +181,8 @@ viewSongDictData model =
 viewYoutubeHeader : Element Msg
 viewYoutubeHeader =
     row
-        []
-        [ Input.button [] { onPress = Just RestoreDefaultState, label = text "Return to song list" } ]
+        [ width fill ]
+        [ Input.button [ alignLeft ] { onPress = Just RestoreDefaultState, label = text "Return to song list" } ]
 
 
 viewYoutubeDialog : YoutubeData -> Element Msg

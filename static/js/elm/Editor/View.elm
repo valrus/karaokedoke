@@ -16,6 +16,7 @@ import Json.Decode
 import Lyrics.Model exposing (..)
 import Ports
 import RemoteData exposing (RemoteData(..), WebData, toMaybe)
+import Url.Builder
 
 
 headerPadding : Int
@@ -38,14 +39,26 @@ headerHeight =
     headerContentHeight + (2 * headerPadding)
 
 
+returnLink : Element Msg
+returnLink =
+    el
+        [ width (px controlsWidth) ]
+            <|
+        link [] { url = Url.Builder.absolute [] [], label = text "Back" }
+
+
 songHeader : Model -> Element Msg
 songHeader model =
     row
         [ centerX
         , Font.size 36
+        , width (px waveformWidth)
         ]
     <|
-        [ text <| (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+        [ el [ alignLeft, clipX, width <| maximum (waveformWidth - controlsWidth) <| fill ] <|
+            text <|
+                (RemoteData.toMaybe >> Maybe.map .name >> Maybe.withDefault "Unknown song") model.song
+        , songControls model
         ]
 
 
@@ -111,7 +124,8 @@ playPauseButton model =
 songControls : Model -> Element Msg
 songControls model =
     column
-        [ width (px controlsWidth)
+        [ alignRight
+        , width (px controlsWidth)
         ]
         [ playPauseButton model ]
 
@@ -171,23 +185,35 @@ lyricsPageHtml model page =
         List.map (lyricsLineHtml model) page.lines
 
 
-lyricsHtml : Model -> Html Msg
+statusMessage : String -> Element Msg
+statusMessage s =
+    el [ centerX, padding 100, Font.size 36 ] (text s)
+
+
+lyricsHtml : Model -> Element Msg
 lyricsHtml model =
-    div
-        []
-    <|
-        case model.lyrics of
-            NotAsked ->
-                [ Html.text "La de da" ]
+    case ( model.waveformLength, model.lyrics ) of
+        ( Success _, Success lyrics ) ->
+            html <| div [] <| List.map (lyricsLineHtml model) <| List.concatMap .lines lyrics
 
-            Loading ->
-                [ Html.text "Loading" ]
+        ( NotAsked, _ ) ->
+            statusMessage "La de da"
 
-            Failure e ->
-                [ Html.text <| errorToString e ]
+        ( Failure e, _ ) ->
+            statusMessage e
 
-            Success lyrics ->
-                List.map (lyricsLineHtml model) <| List.concatMap .lines lyrics
+        ( Loading, _ ) ->
+            statusMessage "Loading"
+
+        ( _, NotAsked ) ->
+            statusMessage "La de da"
+
+        ( _, Loading ) ->
+            statusMessage "Loading"
+
+        ( _, Failure e ) ->
+            statusMessage <| errorToString e
+
 
 
 lyricsSection : Model -> Element Msg
@@ -197,7 +223,7 @@ lyricsSection model =
         , alignTop
         , width fill
         ]
-        [ html <| lyricsHtml model ]
+        [ lyricsHtml model ]
 
 
 viewEditor : Model -> Element Msg
@@ -237,7 +263,7 @@ header model =
         , spacing 10
         , Background.color <| rgba 0.8 0.8 0.8 1.0
         ]
-        [ songControls model
+        [ returnLink
         , songHeader model
         , saveLink model
         ]
