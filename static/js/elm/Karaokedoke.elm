@@ -75,7 +75,7 @@ view model =
                     Html.div [] []
 
                 DashboardPage dashboardModel ->
-                    DashboardView.view dashboardModel model.songDict |> Html.map DashboardPageMsg
+                    DashboardView.view dashboardModel |> Html.map DashboardPageMsg
 
                 EditorPage editorModel ->
                     EditorView.view editorModel |> Html.map EditorPageMsg
@@ -112,9 +112,9 @@ updateWith toPageModel toMsg model ( pageModel, pageCmd ) =
     )
 
 
-dashboardUpdate : Model -> ( DashboardState.Model, WebData SongDict, Cmd DashboardState.Msg ) -> ( Model, Cmd Msg )
-dashboardUpdate model ( pageModel, songDict, pageCmd ) =
-    ( { model | page = DashboardPage pageModel, songDict = songDict }
+dashboardUpdate : Model -> ( DashboardState.Model, Cmd DashboardState.Msg ) -> ( Model, Cmd Msg )
+dashboardUpdate model ( pageModel, pageCmd ) =
+    ( { model | page = DashboardPage pageModel, songDict = pageModel.songDict }
     , Cmd.map DashboardPageMsg pageCmd
     )
 

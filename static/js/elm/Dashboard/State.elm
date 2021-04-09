@@ -3,13 +3,14 @@ module Dashboard.State exposing (..)
 --
 
 import File exposing (File)
+import File.Select as Select
 import Debug
 import Dict
 import Http
 import Json.Decode as D
 import Ports
 import List exposing (filter)
-import RemoteData exposing (WebData, fromResult)
+import RemoteData exposing (RemoteData(..), WebData, fromResult)
 import Url.Builder
 
 --
@@ -18,8 +19,37 @@ import Helpers exposing (errorToString)
 import Song exposing (..)
 
 
+type alias YoutubeData =
+    { song : String
+    , artist : String
+    , url : String
+    }
+
+
+type YoutubeField
+    = YoutubeSong
+    | YoutubeArtist
+    | YoutubeUrl
+
+
+blankYoutubeData : YoutubeData
+blankYoutubeData =
+    { song = ""
+    , artist = ""
+    , url = ""
+    }
+
+
+type DashboardState
+    = Default
+    | ShowingYoutubeDialog YoutubeData
+    | Dragging
+
+
 type alias Model =
-    { dragging : Bool }
+    { songDict : WebData SongDict
+    , state : DashboardState
+    }
 
 
 type alias ProcessingEvent =
@@ -33,7 +63,11 @@ type Msg
     | DeleteSongData SongId
     | RemoveSong SongId (Result Http.Error ())
     | DragEnter
-    | DragLeave
+    | RestoreDefaultState
+    | ShowYoutubeDialog
+    | UpdateYoutubeData YoutubeField String
+    | FilesRequested
+    | YoutubeRequested
     | ProcessFiles File (List File)
     | HandleProcessingEvent (Result D.Error ProcessingEvent)
 
@@ -43,17 +77,32 @@ updateSongWithState newState currentSong =
     Maybe.map (updateProcessingState newState) currentSong
 
 
-updateSongDict : Model -> WebData SongDict -> ( Model, WebData SongDict, Cmd Msg )
+updateSongDict : Model -> WebData SongDict -> ( Model, Cmd Msg )
 updateSongDict model songDict =
-    ( model, songDict, Cmd.none )
+    ( { model | songDict = songDict }, Cmd.none )
 
 
-update : Model -> Msg -> (WebData SongDict) -> ( Model, WebData SongDict, Cmd Msg )
+updateYoutubeData : YoutubeData -> YoutubeField -> String -> YoutubeData
+updateYoutubeData data field s =
+    case field of
+      YoutubeSong ->
+          { data | song = s }
+
+      YoutubeArtist ->
+          { data | artist = s }
+
+      YoutubeUrl ->
+          { data | url = s }
+
+
+update : Model -> Msg -> (WebData SongDict) -> ( Model, Cmd Msg )
 update model msg songDict =
     case msg of
         AddUploadedSongs (Ok songUpload) ->
-            updateSongDict model <| RemoteData.succeed <|
-                mergeSongUploads songUpload <| RemoteData.withDefault Dict.empty songDict
+            updateSongDict model
+                <| RemoteData.succeed
+                <| mergeSongUploads songUpload
+                <| RemoteData.withDefault Dict.empty songDict
 
         AddUploadedSongs (Err songUploadError) ->
             updateSongDict model <| RemoteData.Failure <| songUploadError
@@ -63,7 +112,6 @@ update model msg songDict =
 
         DeleteSongData songId ->
             ( model
-            , songDict
             , Http.request
                 { method = "DELETE"
                 , headers = []
@@ -73,24 +121,42 @@ update model msg songDict =
                 , timeout = Nothing
                 , tracker = Nothing
                 }
-                )
+            )
 
         DragEnter ->
-            ( { model | dragging = True }, songDict, Cmd.none )
+            ( { model | state = Dragging }, Cmd.none )
 
-        DragLeave ->
-            ( { model | dragging = False }, songDict, Cmd.none )
+        RestoreDefaultState ->
+            ( { model | state = Default }, Cmd.none )
 
         HandleProcessingEvent (Ok processingEvent) ->
-            updateSongDict model <| RemoteData.map
-                (Dict.update processingEvent.songId <| updateSongWithState processingEvent.state) songDict
+            updateSongDict model
+                <| RemoteData.map
+                    (Dict.update processingEvent.songId <| updateSongWithState processingEvent.state)
+                    songDict
 
         HandleProcessingEvent (Err eventDecodeError) ->
             updateSongDict model songDict
 
+        FilesRequested ->
+            ( model, Select.files ["audio/mpeg"] ProcessFiles )
+
+        ShowYoutubeDialog ->
+            ( { model | state = ShowingYoutubeDialog blankYoutubeData }, Cmd.none )
+
+        UpdateYoutubeData field s ->
+            case model.state of
+                ShowingYoutubeDialog youtubeData ->
+                    ( { model | state = ShowingYoutubeDialog <| updateYoutubeData youtubeData field s }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        YoutubeRequested ->
+            ( model, Cmd.none )
+
         ProcessFiles file files ->
-            ( { model | dragging = False }
-            , songDict
+            ( { model | state = Default }
             , Http.post
                 { url = Url.Builder.absolute ["api", "songs"] []
                 , body = Http.multipartBody <| List.map (Http.filePart "song[]") <| file :: files
@@ -101,7 +167,9 @@ update model msg songDict =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { dragging = False }
+    ( { songDict = NotAsked
+      , state = Default
+      }
     , Http.get
         { url = Url.Builder.absolute ["api", "songs"] []
         , expect = Http.expectJson AddUploadedSongs songUploadDecoder

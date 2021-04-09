@@ -2,16 +2,17 @@ module Dashboard.View exposing (view)
 
 --
 
-import Dashboard.State exposing (Model, Msg(..))
+import Dashboard.State exposing (DashboardState(..), Model, Msg(..), YoutubeData, YoutubeField(..))
 import Dict
 import Element exposing (..)
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
+import Element.Input as Input
 import File
 import Helpers exposing (errorToString)
 import Html exposing (Html)
-import Html.Attributes exposing (style, href)
+import Html.Attributes exposing (href, style)
 import Html.Events exposing (preventDefaultOn)
 import Json.Decode as D
 import RemoteData exposing (RemoteData(..), WebData)
@@ -104,65 +105,135 @@ playSongState ( songId, song ) =
 
 viewSongDict : Model -> SongDict -> Element Msg
 viewSongDict model songDict =
-    case model.dragging of
-        False ->
-            table
-                (List.append [ centerX, centerY, width shrink ] tableBorder)
-                { data = Dict.toList songDict
-                , columns =
-                    [ { header = songTableCell [ Font.bold ] <| text "Song"
-                      , width = fill
-                      , view = editSongLink >> songTableEllipsisCell
-                      }
-                    , { header = songTableCell [ Font.bold ] <| text "Artist"
-                      , width = fill
-                      , view = Tuple.second >> .artist >> Html.text >> songTableEllipsisCell
-                      }
-                    , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
-                      , width = fill |> maximum 50
-                      , view = playSongState >> songTableCell []
-                      }
-                    , { header = songTableCell [ centerX, Font.bold ] <| text "Delete"
-                      , width = fill |> maximum 50
-                      , view = Tuple.first >> deleteSongLink >> el [ centerX ] >> songTableCell []
-                      }
-                    ]
-                }
-
-        True ->
-            el [ centerX, centerY, width shrink, height shrink, Font.size 300 ] <| text "⇪"
+    table
+        (List.append [ centerX, centerY, width shrink ] tableBorder)
+        { data = Dict.toList songDict
+        , columns =
+            [ { header = songTableCell [ Font.bold ] <| text "Song"
+              , width = fill
+              , view = editSongLink >> songTableEllipsisCell
+              }
+            , { header = songTableCell [ Font.bold ] <| text "Artist"
+              , width = fill
+              , view = Tuple.second >> .artist >> Html.text >> songTableEllipsisCell
+              }
+            , { header = songTableCell [ centerX, Font.bold ] <| text "Play"
+              , width = fill |> maximum 50
+              , view = playSongState >> songTableCell []
+              }
+            , { header = songTableCell [ centerX, Font.bold ] <| text "Delete"
+              , width = fill |> maximum 50
+              , view = Tuple.first >> deleteSongLink >> el [ centerX ] >> songTableCell []
+              }
+            ]
+        }
 
 
-viewSongDictData : Model -> WebData SongDict -> Element Msg
-viewSongDictData model songDictData =
-    case songDictData of
-        NotAsked ->
-            el [ centerX, centerY ] <| text "Initialising…"
-
-        Loading ->
-            el [ centerX, centerY ] <| text "Loading…"
-
-        Failure err ->
-            el [ centerX, centerY ] <| text ("Error: " ++ errorToString err)
-
-        Success songDict ->
-            viewSongDict model songDict
+addSongLinks : Model -> SongDict -> Element Msg
+addSongLinks model songDict =
+    row
+        [ width fill
+        , padding 5
+        ]
+        [ Input.button [ alignLeft ] { onPress = Just FilesRequested, label = text "Upload MP3" }
+        , Input.button [ alignRight ] { onPress = Just ShowYoutubeDialog, label = text "Load from YouTube" }
+        ]
 
 
 
 -- drag and drop, see https://github.com/elm/file/blob/master/examples/DragAndDrop.elm
 
 
-view : Model -> WebData SongDict -> Html Msg
-view model songDictData =
-    layout
-        [ hijackOn "dragenter" (D.succeed DragEnter)
-        , hijackOn "dragover" (D.succeed DragEnter)
-        , hijackOn "dragleave" (D.succeed DragLeave)
-        , hijackOn "drop" dropDecoder
+draggable : List (Attribute Msg)
+draggable =
+    [ hijackOn "dragenter" (D.succeed DragEnter)
+    , hijackOn "dragover" (D.succeed DragEnter)
+    , hijackOn "dragleave" (D.succeed RestoreDefaultState)
+    , hijackOn "drop" dropDecoder
+    ]
+
+
+viewSongDictData : Model -> Html Msg
+viewSongDictData model =
+    case model.songDict of
+        NotAsked ->
+            layout [] <| el [ centerX, centerY ] <| text "Initialising…"
+
+        Loading ->
+            layout [] <| el [ centerX, centerY ] <| text "Loading…"
+
+        Failure err ->
+            layout [] <| el [ centerX, centerY ] <| text ("Error: " ++ errorToString err)
+
+        Success songDict ->
+            layout draggable <|
+                column
+                    [ centerX
+                    , centerY
+                    , width shrink
+                    , spacing 10
+                    ]
+                    [ viewSongDict model songDict
+                    , addSongLinks model songDict
+                    ]
+
+
+viewYoutubeHeader : Element Msg
+viewYoutubeHeader =
+    row
+        []
+        [ Input.button [] { onPress = Just RestoreDefaultState, label = text "Return to song list" } ]
+
+
+viewYoutubeDialog : YoutubeData -> Element Msg
+viewYoutubeDialog youtubeData =
+    column
+        (List.append tableBorder [ spacing 10, padding 10 ])
+        [ Input.text []
+            { onChange = UpdateYoutubeData YoutubeSong
+            , text = youtubeData.song
+            , placeholder = Just (Input.placeholder [] <| text "No Children")
+            , label = Input.labelLeft [] <| text "Song Name"
+            }
+        , Input.text []
+            { onChange = UpdateYoutubeData YoutubeArtist
+            , text = youtubeData.artist
+            , placeholder = Just (Input.placeholder [] <| text "The Mountain Goats")
+            , label = Input.labelLeft [] <| text "Artist Name"
+            }
+        , Input.text []
+            { onChange = UpdateYoutubeData YoutubeUrl
+            , text = youtubeData.url
+            , placeholder = Just (Input.placeholder [] <| text "https://www.youtube.com/watch?v=QS27S3mspjU")
+            , label = Input.labelLeft [] <| text "YouTube URL"
+            }
+        , Input.button [ centerX ]
+            { onPress = Just YoutubeRequested
+            , label = text "Load YouTube audio"
+            }
         ]
+
+
+viewYoutubeState : YoutubeData -> Element Msg
+viewYoutubeState youtubeData =
+    column
+        [ centerX, centerY, width shrink, height shrink, spacing 10 ]
     <|
-        viewSongDictData model songDictData
+        [ viewYoutubeHeader
+        , viewYoutubeDialog youtubeData ]
+
+
+view : Model -> Html Msg
+view model =
+    case model.state of
+        Default ->
+            viewSongDictData model
+
+        Dragging ->
+            layout [] <| el [ centerX, centerY, width shrink, height shrink, Font.size 300 ] <| text "⇪"
+
+        ShowingYoutubeDialog youtubeData ->
+            layout [] <| viewYoutubeState youtubeData
 
 
 dropDecoder : D.Decoder Msg
