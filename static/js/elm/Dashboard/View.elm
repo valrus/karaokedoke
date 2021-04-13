@@ -208,7 +208,7 @@ viewYoutubeDialog youtubeData =
             , label = Input.labelLeft [] <| text "YouTube URL"
             }
         , Input.button [ centerX ]
-            { onPress = Just YoutubeRequested
+            { onPress = Just <| YoutubeRequested youtubeData
             , label = text "Load YouTube audio"
             }
         ]

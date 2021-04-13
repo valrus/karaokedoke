@@ -8,6 +8,7 @@ import Debug
 import Dict
 import Http
 import Json.Decode as D
+import Json.Encode as E
 import Ports
 import List exposing (filter)
 import RemoteData exposing (RemoteData(..), WebData, fromResult)
@@ -67,7 +68,7 @@ type Msg
     | ShowYoutubeDialog
     | UpdateYoutubeData YoutubeField String
     | FilesRequested
-    | YoutubeRequested
+    | YoutubeRequested YoutubeData
     | ProcessFiles File (List File)
     | HandleProcessingEvent (Result D.Error ProcessingEvent)
 
@@ -93,6 +94,15 @@ updateYoutubeData data field s =
 
       YoutubeUrl ->
           { data | url = s }
+
+
+encodeYoutubeData : YoutubeData -> E.Value
+encodeYoutubeData youtubeData =
+    E.object
+        [ ( "song", E.string youtubeData.song )
+        , ( "artist", E.string youtubeData.artist )
+        , ( "url", E.string youtubeData.url )
+        ]
 
 
 update : Model -> Msg -> (WebData SongDict) -> ( Model, Cmd Msg )
@@ -152,8 +162,14 @@ update model msg songDict =
                 _ ->
                     ( model, Cmd.none )
 
-        YoutubeRequested ->
-            ( model, Cmd.none )
+        YoutubeRequested youtubeData ->
+            ( { model | state = Default }
+            , Http.post
+                { url = Url.Builder.absolute ["api", "songs", "youtube"] []
+                , body = Http.jsonBody <| encodeYoutubeData youtubeData
+                , expect = Http.expectJson AddUploadedSongs songUploadDecoder
+                }
+            )
 
         ProcessFiles file files ->
             ( { model | state = Default }
