@@ -230,7 +230,7 @@ view model =
             viewSongDictData model
 
         Dragging ->
-            layout [] <| el [ centerX, centerY, width shrink, height shrink, Font.size 300 ] <| text "⇪"
+            layout draggable <| el [ centerX, centerY, width shrink, height shrink, Font.size 300 ] <| text "⇪"
 
         ShowingYoutubeDialog youtubeData ->
             layout [] <| viewYoutubeState youtubeData
