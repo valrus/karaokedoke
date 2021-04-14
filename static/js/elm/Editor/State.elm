@@ -49,9 +49,10 @@ lyricPositionDecoder =
         (D.field "id" D.string)
         (D.field "moved" D.bool)
         (D.map3 LyricPosition
-             (D.map seconds <| D.field "start" D.float)
-             (D.field "startPixels" D.int)
-             (D.field "endPixels" D.int))
+            (D.map seconds <| D.field "start" D.float)
+            (D.field "startPixels" D.int)
+            (D.field "endPixels" D.int)
+        )
 
 
 type alias Model =
@@ -143,38 +144,38 @@ adjustLine lyricAdjustments line =
     let
         timeDelta =
             (-)
-                ( Maybe.withDefault line.begin
-                     <| Maybe.map .startTime
-                     <| Dict.get line.id lyricAdjustments
+                (Maybe.withDefault line.begin <|
+                    Maybe.map .startTime <|
+                        Dict.get line.id lyricAdjustments
                 )
                 line.begin
-
     in
-        { line |
-              tokens = adjustTokens timeDelta line.tokens,
-              begin = (+) line.begin timeDelta,
-              end = (+) line.end timeDelta
-        }
+    { line
+        | tokens = adjustTokens timeDelta line.tokens
+        , begin = (+) line.begin timeDelta
+        , end = (+) line.end timeDelta
+    }
+
 
 adjustPage : LyricAdjustments -> LyricPage -> LyricPage
 adjustPage lyricAdjustments page =
     let
         newLines =
             List.map (adjustLine lyricAdjustments) page.lines
-
     in
-        { page |
-              lines = newLines,
-              begin = Maybe.withDefault 0 <| List.minimum <| List.map .begin newLines,
-              end = Maybe.withDefault 0 <| List.maximum <| List.map .end newLines
-        }
+    { page
+        | lines = newLines
+        , begin = Maybe.withDefault 0 <| List.minimum <| List.map .begin newLines
+        , end = Maybe.withDefault 0 <| List.maximum <| List.map .end newLines
+    }
 
 
 compileChanges : Model -> LyricBook
 compileChanges model =
     List.map
         (adjustPage model.lyricPositions)
-        <| RemoteData.withDefault [] model.lyrics
+    <|
+        RemoteData.withDefault [] model.lyrics
 
 
 update : Model -> Msg -> ( Model, Cmd Msg )
@@ -199,7 +200,8 @@ update model msg =
 
         GotWaveform (Err waveformResultDecodeError) ->
             ( { model | waveformLength = Failure (log "waveformErr" (D.errorToString waveformResultDecodeError)) }
-            , Cmd.none )
+            , Cmd.none
+            )
 
         GotWaveform (Ok result) ->
             ( { model | waveformLength = log "GotWaveform Ok" result }
@@ -208,18 +210,21 @@ update model msg =
 
         AddedRegion (Err addedRegionDecodeError) ->
             ( { model | waveformLength = Failure (log "regionErr" (D.errorToString addedRegionDecodeError)) }
-            , Cmd.none )
+            , Cmd.none
+            )
 
         AddedRegion (Ok lyricUpdate) ->
             ( { model
-                  | lyricPositions = Dict.insert lyricUpdate.id lyricUpdate.pos model.lyricPositions
-                  , lyricsChanged = lyricUpdate.moved
+                | lyricPositions = Dict.insert lyricUpdate.id lyricUpdate.pos model.lyricPositions
+                , lyricsChanged = lyricUpdate.moved
               }
-            , Cmd.none )
+            , Cmd.none
+            )
 
         SetPlayhead (Err error) ->
             ( model
-            , Cmd.none )
+            , Cmd.none
+            )
 
         SetPlayhead (Ok positionInSeconds) ->
             ( { model | playhead = seconds positionInSeconds }
@@ -240,17 +245,18 @@ update model msg =
 
         LyricsSaved (Ok ()) ->
             ( { model | lyricsChanged = False }
-            , Cmd.none )
+            , Cmd.none
+            )
 
         SaveLyrics ->
             ( model
             , Http.request
-                  { method = "PUT"
-                  , headers = []
-                  , url = Url.Builder.absolute ["api", "lyrics", model.songId] []
-                  , body = Http.jsonBody <| Json.Encode.object [ ( "syncMap", encodeLyricBook <| compileChanges model ) ]
-                  , expect = Http.expectWhatever LyricsSaved
-                  , timeout = Nothing
-                  , tracker = Nothing
-                  }
+                { method = "PUT"
+                , headers = []
+                , url = Url.Builder.absolute [ "api", "lyrics", model.songId ] []
+                , body = Http.jsonBody <| Json.Encode.object [ ( "syncMap", encodeLyricBook <| compileChanges model ) ]
+                , expect = Http.expectWhatever LyricsSaved
+                , timeout = Nothing
+                , tracker = Nothing
+                }
             )
