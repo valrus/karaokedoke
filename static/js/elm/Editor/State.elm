@@ -57,7 +57,11 @@ lyricPositionDecoder =
 type alias Model =
     { songId : SongId
     , song : WebData (Prepared Song)
+
+    -- lyrics loaded initially
     , lyrics : WebData LyricBook
+
+    -- changes made to lyrics / locations in editor
     , lyricPositions : LyricAdjustments
     , waveformLength : WaveformLengthResult
     , playhead : Milliseconds

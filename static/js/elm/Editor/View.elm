@@ -142,13 +142,13 @@ lyricTokensHtml line =
 lyricsLineHtml : Model -> LyricLine -> Html Msg
 lyricsLineHtml model line =
     let
-        topPixels =
+        ( lineMilliseconds, topPixels ) =
             case Dict.get line.id model.lyricPositions of
                 Just pos ->
-                    pos.bottomPixels
+                    ( pos.startTime, pos.bottomPixels )
 
                 Nothing ->
-                    round <| 20 * inSeconds line.begin
+                    ( line.begin, round <| 20 * inSeconds line.begin )
     in
     div
         -- TODO move this to CSS
@@ -158,7 +158,7 @@ lyricsLineHtml model line =
         , style "width" "100%"
         , style "top" <| String.concat [ String.fromInt <| topPixels, "px" ]
         , style "background-color" <|
-            if line.begin < model.playhead then
+            if lineMilliseconds < model.playhead then
                 "rgba(255, 200, 200, 0.8)"
 
             else
