@@ -125,7 +125,7 @@ joinNonemptyList maybeNonemptyList =
 
 computePage : Milliseconds -> SizedLyricPage -> List (Svg Msg)
 computePage time page =
-    List.filter (lineBefore time) page.content
+    List.filter (lineBefore (time + 500)) page.content
         |> List.map (lineWithHeight time)
         |> scanl1 accumulateHeights
         |> groupWhile autoSamePage
